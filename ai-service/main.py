@@ -1,6 +1,7 @@
 """FastAPI application entry point for the AccesU Navigation API."""
 
 import os
+import logging
 from pathlib import Path
 from typing import Sequence
 
@@ -15,9 +16,12 @@ from navigation.registry import BuildingRegistry
 from analytics.analysis import DetectionThresholds
 from analytics.security import AnalyticsSettings
 from analytics.store import AnalyticsStore
+from data.postgres import PostgresDataAccess
+from security.api_keys import SlidingWindowLimiter
 from routers.navigation import ErrorResponse, router as navigation_router
 from routers.sessions import router as sessions_router
 from routers.analytics import router as analytics_router
+from routers.api_v1 import router as api_v1_router
 
 
 DEFAULT_ALLOWED_ORIGINS = ("http://localhost:3000", "http://127.0.0.1:3000")
@@ -44,6 +48,7 @@ def create_app(
     allowed_origins: Sequence[str] | None = None,
     analytics_store: AnalyticsStore | None = None,
     analytics_settings: AnalyticsSettings | None = None,
+    data_access: PostgresDataAccess | None = None,
 ) -> FastAPI:
     """Create an app instance, with injection points used by API tests."""
     app = FastAPI(
@@ -59,6 +64,10 @@ def create_app(
     app.state.analytics_settings = settings
     app.state.analytics_store = analytics_store or AnalyticsStore(
         retention_hours=settings.retention_hours
+    )
+    app.state.data_access = data_access or PostgresDataAccess()
+    app.state.api_limiter = SlidingWindowLimiter(
+        limit=int(os.getenv("AI_RATE_LIMIT_PER_MINUTE", "120"))
     )
 
     origins = tuple(allowed_origins) if allowed_origins is not None else configured_origins()
@@ -81,9 +90,12 @@ def create_app(
                 for error in exc.errors()
             ],
         )
+        content = response.model_dump(exclude_none=True)
+        if request.url.path.startswith("/api/v1/"):
+            content["data"] = None
         return JSONResponse(
             status_code=422,
-            content=jsonable_encoder(response.model_dump(exclude_none=True)),
+            content=jsonable_encoder(content),
         )
 
     @app.exception_handler(StarletteHTTPException)
@@ -91,27 +103,45 @@ def create_app(
         request: Request, exc: StarletteHTTPException
     ) -> JSONResponse:
         response = ErrorResponse(message=str(exc.detail))
+        content = response.model_dump(exclude_none=True)
+        if request.url.path.startswith("/api/v1/"):
+            content["data"] = None
         return JSONResponse(
             status_code=exc.status_code,
-            content=response.model_dump(exclude_none=True),
+            content=content,
             headers=exc.headers,
         )
 
+    @app.exception_handler(Exception)
+    async def unexpected_error_handler(request: Request, exc: Exception) -> JSONResponse:
+        # Avoid logging request payloads, credentials, node sequences, or SQL values.
+        logging.getLogger("accesu.api").error(
+            "unhandled_request_error path=%s error_type=%s",
+            request.url.path,
+            type(exc).__name__,
+        )
+        content = {"success": False, "message": "Internal server error"}
+        if request.url.path.startswith("/api/v1/"):
+            content["data"] = None
+        return JSONResponse(status_code=500, content=content)
+
     @app.get("/", tags=["service"])
     def home() -> dict[str, str | bool]:
-        return {"success": True, "message": "AccesU Navigation API is running", "status": "ok"}
+        return {"success": True, "message": "AccesU Navigation API is running", "status": "ok", "version": "0.2.0"}
 
     @app.get("/health", tags=["service"])
     def health() -> dict[str, str | bool | int]:
         return {
             "success": True,
             "status": "healthy",
+            "version": "0.2.0",
             "available_buildings": len(app.state.building_registry.all()),
         }
 
     app.include_router(navigation_router)
     app.include_router(sessions_router)
     app.include_router(analytics_router)
+    app.include_router(api_v1_router)
     return app
 
 

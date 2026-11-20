@@ -54,6 +54,9 @@ class SessionRecord:
     expires_at: datetime
     status: SessionStatus
     token_digest: str
+    start_node: str | None = None
+    destination_node: str | None = None
+    profile: NavigationProfile | None = None
 
 
 @dataclass(frozen=True)
@@ -108,6 +111,9 @@ class AnalyticsStore:
         requested_expiry: datetime | None,
         max_navigation_hours: int,
         max_until_expiry_hours: int,
+        start_node: str | None = None,
+        destination_node: str | None = None,
+        profile: NavigationProfile | None = None,
         now: datetime | None = None,
     ) -> tuple[SessionRecord, str]:
         now = now or utc_now()
@@ -135,6 +141,9 @@ class AnalyticsStore:
             expires_at=expiry,
             status=SessionStatus.ACTIVE,
             token_digest=hashlib.sha256(token.encode()).hexdigest(),
+            start_node=start_node,
+            destination_node=destination_node,
+            profile=profile,
         )
         with self._lock:
             self._prune_locked(now)
@@ -200,6 +209,15 @@ class AnalyticsStore:
             for item in deleted:
                 self._event_ids.discard(item.event_id)
             return len(deleted)
+
+    def delete_session(self, session_id: UUID) -> int:
+        with self._lock:
+            removed = [item for item in self._contributions if item.session_id == session_id]
+            self._contributions = [item for item in self._contributions if item.session_id != session_id]
+            for item in removed:
+                self._event_ids.discard(item.event_id)
+            self._sessions.pop(session_id, None)
+            return len(removed)
 
     def recommendation_status(self, recommendation_id: str) -> RecommendationStatus:
         with self._lock:
