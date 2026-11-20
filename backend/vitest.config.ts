@@ -16,6 +16,7 @@ export default defineConfig({
       JWT_REFRESH_SECRET: 'test-refresh-secret-at-least-32-characters!',
       BCRYPT_ROUNDS: '4',
       PSEUDONYM_SECRET: 'test-pseudonym-secret-at-least-32-characters',
+      ACCESU_NAVIGATION_API_KEY: 'test-navigation-api-key',
       // PGlite has a single backend: one connection per client and no named prepared statements.
       DATABASE_URL: `postgresql://postgres:postgres@127.0.0.1:${TEST_DB_PORT}/postgres?schema=public&connection_limit=1&sslmode=disable&pgbouncer=true`,
     },
