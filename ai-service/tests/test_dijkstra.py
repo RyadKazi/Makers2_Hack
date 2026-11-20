@@ -76,6 +76,22 @@ class DijkstraTests(unittest.TestCase):
         with self.assertRaisesRegex(NoRouteFoundError, "no valid route"):
             calculate_route(graph, "A", "B")
 
+    def test_same_start_and_destination_has_zero_distance(self) -> None:
+        graph = NavigationGraph(building([node("A")], []))
+        result = calculate_route(graph, "A", "A")
+        self.assertEqual(result.route, ["A"])
+        self.assertEqual(result.total_distance, 0)
+        self.assertEqual(result.edges, [])
+
+    def test_empty_graph_rejects_route_endpoint(self) -> None:
+        graph = NavigationGraph(building([], []))
+        with self.assertRaises(NodeNotFoundError):
+            calculate_route(graph, "A", "B")
+
+    def test_negative_edge_distance_is_rejected(self) -> None:
+        with self.assertRaises(ValidationError):
+            edge("A", "B", -1)
+
     def test_door_destination_is_preserved_in_result(self) -> None:
         door = node(
             "ROOM_105_DOOR",

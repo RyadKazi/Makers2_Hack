@@ -115,6 +115,81 @@ class MultiFloorTests(unittest.TestCase):
                 profile=NavigationProfile.WHEELCHAIR,
             )
 
+    def test_verified_elevator_edge_connects_floors_for_wheelchair_route(self) -> None:
+        floors = [Floor(floor_id="G", level=0), Floor(floor_id="F1", level=1)]
+        nodes = [
+            NavigationNode(
+                node_id="START",
+                building_id="LIFT_BUILDING",
+                floor_id="G",
+                x=0,
+                y=0,
+                node_type=NodeType.ENTRANCE,
+            ),
+            NavigationNode(
+                node_id="LIFT_G",
+                building_id="LIFT_BUILDING",
+                floor_id="G",
+                x=1,
+                y=0,
+                node_type=NodeType.ELEVATOR,
+            ),
+            NavigationNode(
+                node_id="LIFT_F1",
+                building_id="LIFT_BUILDING",
+                floor_id="F1",
+                x=1,
+                y=0,
+                node_type=NodeType.ELEVATOR,
+            ),
+            NavigationNode(
+                node_id="DESTINATION",
+                building_id="LIFT_BUILDING",
+                floor_id="F1",
+                x=2,
+                y=0,
+                node_type=NodeType.DOOR,
+                is_destination=True,
+            ),
+        ]
+        edges = [
+            NavigationEdge(
+                source_node="START",
+                destination_node="LIFT_G",
+                distance=2,
+                connection_type=ConnectionType.CORRIDOR,
+            ),
+            NavigationEdge(
+                source_node="LIFT_G",
+                destination_node="LIFT_F1",
+                distance=4,
+                connection_type=ConnectionType.ELEVATOR,
+                accessibility={"accessible": True, "verified": True},
+            ),
+            NavigationEdge(
+                source_node="LIFT_F1",
+                destination_node="DESTINATION",
+                distance=2,
+                connection_type=ConnectionType.DOORWAY,
+            ),
+        ]
+        graph = NavigationGraph(
+            Building(building_id="LIFT_BUILDING", floors=floors, nodes=nodes, edges=edges)
+        )
+
+        result = calculate_route(
+            graph,
+            "START",
+            "DESTINATION",
+            profile=NavigationProfile.WHEELCHAIR,
+        )
+        self.assertEqual(result.route, ["START", "LIFT_G", "LIFT_F1", "DESTINATION"])
+        self.assertEqual(result.total_distance, 8)
+        self.assertEqual(
+            [(item.from_floor, item.to_floor, item.type) for item in result.floor_transitions],
+            [(0, 1, "elevator")],
+        )
+
     def test_cross_floor_corridor_is_rejected(self) -> None:
         with self.assertRaisesRegex(ValidationError, "only stairs, elevators, and ramps"):
             Building(

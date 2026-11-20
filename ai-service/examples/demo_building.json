@@ -1,0 +1,82 @@
+{
+  "building_id": "SYNTHETIC_DEMO_BUILDING",
+  "name": "Synthetic demonstration graph — not a surveyed campus map",
+  "floors": [
+    {"floor_id": "G", "level": 0, "name": "Ground floor"},
+    {"floor_id": "F1", "level": 1, "name": "First floor"}
+  ],
+  "nodes": [
+    {
+      "node_id": "GROUND_ENTRANCE",
+      "building_id": "SYNTHETIC_DEMO_BUILDING",
+      "floor_id": "G",
+      "x": 0,
+      "y": 0,
+      "node_type": "entrance",
+      "label": "Demo entrance"
+    },
+    {
+      "node_id": "GROUND_CORRIDOR",
+      "building_id": "SYNTHETIC_DEMO_BUILDING",
+      "floor_id": "G",
+      "x": 5,
+      "y": 0,
+      "node_type": "corridor_intersection",
+      "accessibility": {"landmarks": ["Demo corridor junction"]}
+    },
+    {
+      "node_id": "STAIR_G",
+      "building_id": "SYNTHETIC_DEMO_BUILDING",
+      "floor_id": "G",
+      "x": 8,
+      "y": 0,
+      "node_type": "staircase",
+      "staircase_connection_id": "DEMO_STAIR"
+    },
+    {
+      "node_id": "STAIR_F1",
+      "building_id": "SYNTHETIC_DEMO_BUILDING",
+      "floor_id": "F1",
+      "x": 8,
+      "y": 0,
+      "node_type": "staircase",
+      "staircase_connection_id": "DEMO_STAIR"
+    },
+    {
+      "node_id": "F1_ROOM_105",
+      "building_id": "SYNTHETIC_DEMO_BUILDING",
+      "floor_id": "F1",
+      "x": 12,
+      "y": 0,
+      "node_type": "door",
+      "is_destination": true,
+      "label": "Demo Room 105"
+    }
+  ],
+  "edges": [
+    {
+      "source_node": "GROUND_ENTRANCE",
+      "destination_node": "GROUND_CORRIDOR",
+      "distance": 5,
+      "connection_type": "corridor"
+    },
+    {
+      "source_node": "GROUND_CORRIDOR",
+      "destination_node": "STAIR_G",
+      "distance": 3,
+      "connection_type": "corridor"
+    },
+    {
+      "source_node": "STAIR_G",
+      "destination_node": "STAIR_F1",
+      "distance": 6,
+      "connection_type": "stairs"
+    },
+    {
+      "source_node": "STAIR_F1",
+      "destination_node": "F1_ROOM_105",
+      "distance": 4,
+      "connection_type": "doorway"
+    }
+  ]
+}

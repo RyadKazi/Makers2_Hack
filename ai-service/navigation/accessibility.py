@@ -12,6 +12,7 @@ class NavigationProfile(str, Enum):
     WHEELCHAIR = "wheelchair"
     GENERAL = "general"
     BLIND_NAVIGATION = "blind_navigation"
+    VISUAL_IMPAIRMENT = "visual_impairment"
 
 
 class RouteConstraints(BaseModel):
