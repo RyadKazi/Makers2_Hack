@@ -1,0 +1,657 @@
+// CampusWay data model.
+//
+// Coordinate system: local campus metres, x → east, y → north, origin at the
+// south-west corner of the campus. This maps 1:1 onto Leaflet CRS.Simple.
+// PostGIS geometries use SRID 0 (planar, metres).
+//
+// Point geometries (`geom`) are GENERATED columns computed from x/y, so Prisma
+// writes plain numbers and PostGIS keeps an indexed geometry in sync. Prisma sees
+// the generation expression as a dbgenerated default; keep both in sync. Lines and
+// polygons are written with raw SQL (ST_GeomFromText). See migrations/0001_init.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis, btree_gist]
+}
+
+// ───────────────────────────── Enums ─────────────────────────────
+
+enum Role {
+  STUDENT
+  TEACHER
+  ADMIN
+  CLUB
+}
+
+enum Locale {
+  ar
+  fr
+  en
+}
+
+/// Coarse, self-declared mobility category. Used for routing defaults and,
+/// anonymously, to segment mobility aggregates. Never linked to a name in analytics.
+enum MobilityProfile {
+  NONE
+  WHEELCHAIR
+  REDUCED_MOBILITY
+  BLIND_LOW_VISION
+  DEAF_HARD_OF_HEARING
+  SPEECH
+}
+
+enum RoomType {
+  CLASSROOM
+  LAB
+  AMPHITHEATER
+  LIBRARY
+  OFFICE
+  MEETING
+}
+
+enum ReservationKind {
+  TEACHER
+  ADMIN
+  CLUB
+}
+
+enum PoiType {
+  ENTRANCE
+  ACCESSIBLE_ENTRANCE
+  ELEVATOR
+  STAIRS
+  RAMP
+  TOILET
+  ACCESSIBLE_TOILET
+  FACILITY
+  PARKING_ACCESSIBLE
+  INFO_DESK
+}
+
+enum NavNodeKind {
+  CORRIDOR
+  DOOR
+  ENTRANCE
+  ELEVATOR
+  STAIRS
+  RAMP
+  JUNCTION
+  OUTDOOR
+}
+
+enum Surface {
+  TILE
+  CONCRETE
+  ASPHALT
+  PAVERS
+  GRAVEL
+  CARPET
+  METAL
+}
+
+/// Side of the walker (relative to the edge direction from → to) where the
+/// shoreline (wall, curb, railing…) can be followed.
+enum WallSide {
+  LEFT
+  RIGHT
+  BOTH
+  NONE
+}
+
+enum WallKind {
+  WALL
+  GLASS
+  RAILING
+  CURB
+  GRASS_EDGE
+}
+
+enum SessionEndReason {
+  USER
+  GEOFENCE_EXIT
+  TIME_LIMIT
+  DAILY_RESET
+  CONSENT_WITHDRAWN
+}
+
+enum DifficultyType {
+  BLOCKED
+  TOO_STEEP
+  HARD_TO_NAVIGATE
+  STUCK
+  REROUTED
+}
+
+enum CorrectionKind {
+  EDGE_CLOSED
+  EDGE_REOPENED
+  SLOPE
+  WIDTH
+  SURFACE
+  MISSING_FEATURE
+  SHORELINE
+  OTHER
+}
+
+enum CorrectionSource {
+  CROWD
+  USER_REPORT
+  ADMIN
+}
+
+enum CorrectionStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum RecommendationKind {
+  RAMP
+  ELEVATOR
+  WIDEN_DOOR
+  ACCESSIBLE_ENTRANCE
+  SIGNAGE
+}
+
+enum RecommendationStatus {
+  OPEN
+  PLANNED
+  DONE
+  DISMISSED
+}
+
+// ───────────────────────────── People ─────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  displayName  String
+  role         Role     @default(STUDENT)
+  /// Bumped on logout / password change: invalidates every refresh token
+  tokenVersion Int      @default(0)
+  locale       Locale   @default(fr)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  accessibilityProfile AccessibilityProfile?
+  mobilityConsent      MobilityConsent?
+  reservations         Reservation[]
+  refreshSessions      RefreshSession[]
+  reviewedCorrections  MapCorrection[]       @relation("CorrectionReviewer")
+
+  @@map("users")
+}
+
+model RefreshSession {
+  jtiHash      String   @id
+  userId       String
+  tokenVersion Int
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_sessions")
+}
+
+/// Routing constraints + UI preferences. Sensitive health-adjacent data:
+/// readable only by the user themself (Law 18-07 art. 18).
+model AccessibilityProfile {
+  id                    String          @id @default(cuid())
+  userId                String          @unique
+  mobility              MobilityProfile @default(NONE)
+  // Routing constraints
+  stepFree              Boolean         @default(false)
+  requireVerifiedRamps  Boolean         @default(false)
+  maxSlopePercent       Float?
+  minPassageWidthCm     Int?
+  avoidClosedPassages   Boolean         @default(true)
+  // Sensory / communication preferences
+  audioGuidance         Boolean         @default(false)
+  shorelineHints        Boolean         @default(false)
+  captions              Boolean         @default(false)
+  textToSpeech          Boolean         @default(false)
+  highContrast          Boolean         @default(false)
+  reducedMotion         Boolean         @default(false)
+  textScale             Float           @default(1)
+  updatedAt             DateTime        @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("accessibility_profiles")
+}
+
+// ───────────────────────────── Campus ─────────────────────────────
+
+model Campus {
+  id        String @id @default(cuid())
+  name      String
+  nameAr    String
+  timezone  String @default("Africa/Algiers")
+  /// Polygon. Mobility data is only collected inside it.
+  geofence  Unsupported("geometry(Polygon, 0)")?
+
+  buildings Building[]
+
+  @@index([geofence], map: "campuses_geofence_gist", type: Gist)
+  @@map("campuses")
+}
+
+model Building {
+  id        String @id @default(cuid())
+  campusId  String
+  code      String @unique
+  name      String
+  nameAr    String
+  /// Label anchor
+  x         Float
+  y         Float
+  footprint Unsupported("geometry(Polygon, 0)")?
+
+  campus Campus  @relation(fields: [campusId], references: [id], onDelete: Cascade)
+  floors Floor[]
+
+  @@index([footprint], map: "buildings_footprint_gist", type: Gist)
+  @@map("buildings")
+}
+
+model Floor {
+  id         String @id @default(cuid())
+  buildingId String
+  level      Int
+  name       String
+  elevationM Float  @default(0)
+  outline    Unsupported("geometry(Polygon, 0)")?
+
+  building Building  @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  rooms    Room[]
+  pois     Poi[]
+  navNodes NavNode[]
+  walls    Wall[]
+
+  @@unique([buildingId, level])
+  @@index([outline], map: "floors_outline_gist", type: Gist)
+  @@map("floors")
+}
+
+model Room {
+  id                String   @id @default(cuid())
+  floorId           String
+  code              String   @unique
+  name              String
+  nameAr            String?
+  type              RoomType
+  capacity          Int
+  wheelchairSpaces  Int      @default(0)
+  hearingLoop       Boolean  @default(false)
+  /// Centroid (label anchor)
+  x                 Float
+  y                 Float
+  geom              Unsupported("geometry(Point, 0)")? @default(dbgenerated("st_setsrid(st_makepoint(x, y), 0)"))
+  shape             Unsupported("geometry(Polygon, 0)")?
+  doorNodeId        String?  @unique
+
+  floor        Floor         @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  doorNode     NavNode?      @relation("RoomDoor", fields: [doorNodeId], references: [id], onDelete: SetNull)
+  reservations Reservation[]
+
+  @@index([floorId])
+  @@index([geom], map: "rooms_geom_gist", type: Gist)
+  @@index([shape], map: "rooms_shape_gist", type: Gist)
+  @@map("rooms")
+}
+
+model Reservation {
+  id        String          @id @default(cuid())
+  roomId    String
+  kind      ReservationKind
+  title     String
+  organizer String
+  userId    String?
+  startsAt  DateTime
+  endsAt    DateTime
+  createdAt DateTime        @default(now())
+
+  room Room  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([roomId, startsAt, endsAt])
+  @@index([userId])
+  // + EXCLUDE constraint "reservations_no_overlap" (migration 0002): no two reservations of a room overlap
+  @@map("reservations")
+}
+
+model Poi {
+  id         String   @id @default(cuid())
+  /// Null for outdoor POIs
+  floorId    String?
+  level      Int      @default(0)
+  type       PoiType
+  name       String
+  nameAr     String?
+  accessible Boolean  @default(false)
+  notes      String?
+  x          Float
+  y          Float
+  geom       Unsupported("geometry(Point, 0)")? @default(dbgenerated("st_setsrid(st_makepoint(x, y), 0)"))
+  navNodeId  String?
+
+  floor   Floor?   @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  navNode NavNode? @relation(fields: [navNodeId], references: [id], onDelete: SetNull)
+
+  @@index([floorId, type])
+  @@index([geom], map: "pois_geom_gist", type: Gist)
+  @@map("pois")
+}
+
+// ───────────────────────────── Navigation graph ─────────────────────────────
+
+model NavNode {
+  id       String      @id
+  /// Null for outdoor nodes
+  floorId  String?
+  level    Int         @default(0)
+  kind     NavNodeKind
+  label    String?
+  /// Spoken landmark for audio guidance, e.g. "porte vitrée de la bibliothèque"
+  landmark String?
+  x        Float
+  y        Float
+  geom     Unsupported("geometry(Point, 0)")? @default(dbgenerated("st_setsrid(st_makepoint(x, y), 0)"))
+
+  floor    Floor?    @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  outEdges NavEdge[] @relation("EdgeFrom")
+  inEdges  NavEdge[] @relation("EdgeTo")
+  room     Room?     @relation("RoomDoor")
+  pois     Poi[]
+
+  @@index([floorId])
+  @@index([level])
+  @@index([geom], map: "nav_nodes_geom_gist", type: Gist)
+  @@map("nav_nodes")
+}
+
+/// Directed when `bidirectional` is false. Attributes describe what the edge
+/// demands of the traveller; routing filters edges by the user's constraints.
+model NavEdge {
+  id              String   @id @default(cuid())
+  fromId          String
+  toId            String
+  bidirectional   Boolean  @default(true)
+  lengthM         Float
+  hasStairs       Boolean  @default(false)
+  stepCount       Int      @default(0)
+  isRamp          Boolean  @default(false)
+  slopePercent    Float    @default(0)
+  widthCm         Int      @default(150)
+  doorClearanceCm Int?
+  surface         Surface  @default(TILE)
+  isElevator      Boolean  @default(false)
+  isOpen          Boolean  @default(true)
+  closedReason    String?
+  verified        Boolean  @default(false)
+  wallSide        WallSide @default(NONE)
+  wallDistanceM   Float?
+  /// Instruction hint for audio guidance, e.g. "longez le mur à droite"
+  shorelineHint   String?
+  geom            Unsupported("geometry(LineString, 0)")?
+  updatedAt       DateTime @updatedAt
+
+  from NavNode @relation("EdgeFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  to   NavNode @relation("EdgeTo", fields: [toId], references: [id], onDelete: Cascade)
+
+  difficultyEvents DifficultyEvent[]
+  corrections      MapCorrection[]
+  recommendations  Recommendation[]
+  hotspots         Hotspot[]
+
+  @@index([fromId])
+  @@index([toId])
+  @@index([geom], map: "nav_edges_geom_gist", type: Gist)
+  @@map("nav_edges")
+}
+
+model Wall {
+  id      String   @id @default(cuid())
+  /// Null for outdoor edges (curbs, grass edges)
+  floorId String?
+  level   Int      @default(0)
+  kind    WallKind @default(WALL)
+  label   String?
+  geom    Unsupported("geometry(LineString, 0)")?
+
+  floor Floor? @relation(fields: [floorId], references: [id], onDelete: Cascade)
+
+  @@index([floorId])
+  @@index([geom], map: "walls_geom_gist", type: Gist)
+  @@map("walls")
+}
+
+// ───────────────────────────── Crowdsourced mobility ─────────────────────────────
+// Privacy by design (Law 18-07): no userId anywhere below. `pseudoId` is an
+// HMAC of (user, day) that rotates daily and cannot be reversed by admins.
+
+model TrackingSession {
+  id          String            @id @default(cuid())
+  pseudoId    String
+  /// Local (Africa/Algiers) calendar day the pseudoId is valid for
+  dayKey      String
+  mobility    MobilityProfile   @default(NONE)
+  startedAt   DateTime
+  endedAt     DateTime?
+  endReason   SessionEndReason?
+  pointCount  Int               @default(0)
+  lastPointAt DateTime?
+  /// Background detectors (STUCK, U-turns) have processed points up to here
+  analyzedUntil DateTime?
+
+  points           TrackPoint[]
+  difficultyEvents DifficultyEvent[]
+
+  @@index([pseudoId, dayKey])
+  @@index([startedAt])
+  @@index([endedAt])
+  @@map("tracking_sessions")
+}
+
+/// Raw points. Deleted after 30 days (retention job, step 7).
+model TrackPoint {
+  id         BigInt   @id @default(autoincrement())
+  sessionId  String
+  recordedAt DateTime
+  level      Int      @default(0)
+  floorId    String?
+  accuracyM  Float?
+  x          Float
+  y          Float
+  /// Planned route being followed (random id from /api/routes/plan; not linkable to an account)
+  routeId    String?
+  geom       Unsupported("geometry(Point, 0)")? @default(dbgenerated("st_setsrid(st_makepoint(x, y), 0)"))
+
+  session TrackingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, recordedAt])
+  @@index([recordedAt])
+  @@index([routeId])
+  @@index([geom], map: "track_points_geom_gist", type: Gist)
+  @@map("track_points")
+}
+
+model DifficultyEvent {
+  id         String          @id @default(cuid())
+  sessionId  String?
+  pseudoId   String?
+  type       DifficultyType
+  mobility   MobilityProfile @default(NONE)
+  level      Int             @default(0)
+  floorId    String?
+  edgeId     String?
+  note       String?
+  /// null = reported by the student; otherwise the background detector that inferred it
+  detector   String?
+  /// Planned route being followed when the student reported it
+  routeId    String?
+  recordedAt DateTime
+  x          Float
+  y          Float
+  geom       Unsupported("geometry(Point, 0)")? @default(dbgenerated("st_setsrid(st_makepoint(x, y), 0)"))
+
+  session TrackingSession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  edge    NavEdge?         @relation(fields: [edgeId], references: [id], onDelete: SetNull)
+
+  @@index([type, recordedAt])
+  @@index([edgeId])
+  @@index([pseudoId, recordedAt])
+  @@index([geom], map: "difficulty_events_geom_gist", type: Gist)
+  @@map("difficulty_events")
+}
+
+model MapCorrection {
+  id            String           @id @default(cuid())
+  kind          CorrectionKind
+  source        CorrectionSource
+  status        CorrectionStatus @default(PENDING)
+  title         String
+  description   String
+  edgeId        String?
+  nodeId        String?
+  level         Int              @default(0)
+  /// Proposed attribute changes, e.g. { "slopePercent": 12, "verified": true }
+  proposed      Json?
+  evidenceCount Int              @default(1)
+  x             Float?
+  y             Float?
+  geom          Unsupported("geometry(Point, 0)")? @default(dbgenerated("st_setsrid(st_makepoint(x, y), 0)"))
+  createdAt     DateTime         @default(now())
+  reviewedAt    DateTime?
+  reviewedById  String?
+  reviewNote    String?
+
+  edge       NavEdge? @relation(fields: [edgeId], references: [id], onDelete: SetNull)
+  reviewedBy User?    @relation("CorrectionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([geom], map: "map_corrections_geom_gist", type: Gist)
+  @@map("map_corrections")
+}
+
+/// Pre-aggregated grid cell. Admin APIs must hide cells with contributorCount < 5 (k-anonymity).
+/// `segment` is "ALL" or a MobilityProfile value.
+model HeatmapCell {
+  id               String   @id @default(cuid())
+  /// TODAY | 7D | 30D
+  period           String
+  level            Int
+  cellSizeM        Float
+  cellX            Int
+  cellY            Int
+  segment          String
+  windowStart      DateTime
+  windowEnd        DateTime
+  visitCount       Int
+  contributorCount Int
+  difficultyCount  Int      @default(0)
+  stuckCount       Int      @default(0)
+  /// Cell centre
+  x                Float
+  y                Float
+  geom             Unsupported("geometry(Point, 0)")? @default(dbgenerated("st_setsrid(st_makepoint(x, y), 0)"))
+  computedAt       DateTime @default(now())
+
+  @@unique([period, level, cellSizeM, cellX, cellY, segment])
+  @@index([period, segment, level])
+  @@index([geom], map: "heatmap_cells_geom_gist", type: Gist)
+  @@map("heatmap_cells")
+}
+
+model Recommendation {
+  id        String               @id @default(cuid())
+  /// Stable identity across engine runs ("RAMP:E-O-B-ENT--B0-ENT"), keeps the admin's status
+  key       String?              @unique
+  kind      RecommendationKind
+  status    RecommendationStatus @default(OPEN)
+  title     String
+  rationale String
+  /// 0–100 priority derived from affected contributors and difficulty events
+  score     Float
+  /// Supporting aggregates (no personal data)
+  evidence  Json
+  level     Int                  @default(0)
+  edgeId    String?
+  x         Float
+  y         Float
+  geom      Unsupported("geometry(Point, 0)")? @default(dbgenerated("st_setsrid(st_makepoint(x, y), 0)"))
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  edge NavEdge? @relation(fields: [edgeId], references: [id], onDelete: SetNull)
+
+  @@index([status, score])
+  @@index([geom], map: "recommendations_geom_gist", type: Gist)
+  @@map("recommendations")
+}
+
+/// DBSCAN cluster of difficulty events (30 days), recomputed every 5 minutes.
+/// Only clusters with >= 5 distinct daily pseudonyms are stored (k-anonymity).
+model Hotspot {
+  id               String          @id @default(cuid())
+  level            Int
+  floorId          String?
+  x                Float
+  y                Float
+  geom             Unsupported("geometry(Point, 0)")? @default(dbgenerated("st_setsrid(st_makepoint(x, y), 0)"))
+  radiusM          Float
+  eventCount       Int
+  contributorCount Int
+  /// { BLOCKED: n, STUCK: n, … }
+  byType           Json
+  /// { WHEELCHAIR: n, … } — categories with < 5 contributors are merged into "OTHER"
+  byCategory       Json
+  dominantType     DifficultyType
+  /// Nearest navigation edge (the passage the difficulty is about)
+  edgeId           String?
+  /// Shoreline: nearest wall / curb / railing segment and its side relative to edge from → to
+  wallId           String?
+  wallKind         WallKind?
+  wallSide         WallSide?
+  wallDistanceM    Float?
+  computedAt       DateTime        @default(now())
+
+  edge NavEdge? @relation(fields: [edgeId], references: [id], onDelete: SetNull)
+
+  @@index([level])
+  @@index([geom], map: "hotspots_geom_gist", type: Gist)
+  @@map("hotspots")
+}
+
+/// Opt-in to crowdsourced mobility data. Holds the user id: it is about the person, not their movements.
+model MobilityConsent {
+  userId        String    @id
+  policyVersion String
+  grantedAt     DateTime
+  revokedAt     DateTime?
+  updatedAt     DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("mobility_consents")
+}
+
+/// Random salt per Africa/Algiers day for pseudonyms. Deleted after 30 days, together with raw
+/// points: from then on nothing can link aggregates back to a person, not even the server.
+model PseudonymSalt {
+  dayKey    String   @id
+  salt      String
+  createdAt DateTime @default(now())
+
+  @@map("pseudonym_salts")
+}
