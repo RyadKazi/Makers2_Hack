@@ -12,7 +12,12 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from navigation.registry import BuildingRegistry
+from analytics.analysis import DetectionThresholds
+from analytics.security import AnalyticsSettings
+from analytics.store import AnalyticsStore
 from routers.navigation import ErrorResponse, router as navigation_router
+from routers.sessions import router as sessions_router
+from routers.analytics import router as analytics_router
 
 
 DEFAULT_ALLOWED_ORIGINS = ("http://localhost:3000", "http://127.0.0.1:3000")
@@ -37,6 +42,8 @@ def configured_registry() -> BuildingRegistry:
 def create_app(
     registry: BuildingRegistry | None = None,
     allowed_origins: Sequence[str] | None = None,
+    analytics_store: AnalyticsStore | None = None,
+    analytics_settings: AnalyticsSettings | None = None,
 ) -> FastAPI:
     """Create an app instance, with injection points used by API tests."""
     app = FastAPI(
@@ -48,6 +55,11 @@ def create_app(
         version="0.1.0",
     )
     app.state.building_registry = registry if registry is not None else configured_registry()
+    settings = analytics_settings or AnalyticsSettings.from_env()
+    app.state.analytics_settings = settings
+    app.state.analytics_store = analytics_store or AnalyticsStore(
+        retention_hours=settings.retention_hours
+    )
 
     origins = tuple(allowed_origins) if allowed_origins is not None else configured_origins()
     app.add_middleware(
@@ -98,6 +110,8 @@ def create_app(
         }
 
     app.include_router(navigation_router)
+    app.include_router(sessions_router)
+    app.include_router(analytics_router)
     return app
 
 

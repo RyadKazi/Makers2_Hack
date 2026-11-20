@@ -1,5 +1,6 @@
 ﻿.agents/
 .AGENTS.md
+.env
 **/venv/
 __pycache__/
 .pytest_cache/

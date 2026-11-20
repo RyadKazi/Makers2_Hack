@@ -96,6 +96,9 @@ class ApiTestClient:
     def options(self, path: str, **kwargs: Any) -> httpx.Response:
         return self._request("OPTIONS", path, **kwargs)
 
+    def delete(self, path: str, **kwargs: Any) -> httpx.Response:
+        return self._request("DELETE", path, **kwargs)
+
 
 def make_client(*buildings: Building) -> ApiTestClient:
     registry = BuildingRegistry(buildings)
