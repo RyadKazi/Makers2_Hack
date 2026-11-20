@@ -9,6 +9,9 @@ import { warmCampusGraph } from './modules/routing/graph.repository.js';
 import { createSocketServer } from './sockets/index.js';
 
 const app = createApp({ checkDatabase: () => isDatabaseUp() });
+if (!env.ACCESU_NAVIGATION_API_KEY) {
+  logger.warn('ACCESU_NAVIGATION_API_KEY is not set: /api/ai/route will return 503');
+}
 const httpServer = createServer(app);
 const sockets = createSocketServer(httpServer);
 const ticker = startRoomStatusTicker();

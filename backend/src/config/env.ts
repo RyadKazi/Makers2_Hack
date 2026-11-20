@@ -11,12 +11,32 @@ const csv = z
       .filter((item) => item.length > 0),
   );
 
+const TRUST_PROXY_NAMES = ['loopback', 'linklocal', 'uniquelocal'] as const;
+
+/**
+ * Express `trust proxy` setting as a string.
+ * Defaults to "false": only enable it behind a proxy that strips client-supplied
+ * X-Forwarded-For, otherwise clients can spoof their IP and bypass rate limits.
+ */
+const trustProxy = z
+  .string()
+  .default('false')
+  .transform((value) => value.trim().toLowerCase())
+  .refine(
+    (value) => ['false', 'true', ...TRUST_PROXY_NAMES].includes(value) || /^\d+$/.test(value),
+    'use "false", "true", a hop count (e.g. 1), or loopback/linklocal/uniquelocal',
+  );
+
 const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(4000),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   CORS_ORIGINS: csv,
+  TRUST_PROXY: trustProxy,
   DATABASE_URL: z.string().min(1),
+  ACCESU_NAVIGATION_URL: z.url().default('http://127.0.0.1:8000'),
+  /** Bearer key for the FastAPI /api/v1 endpoints; kept on the server, never sent to clients. */
+  ACCESU_NAVIGATION_API_KEY: z.string().min(1).optional(),
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
   JWT_ACCESS_EXPIRES_IN: z.string().regex(/^\d+[smhd]$/, 'use e.g. 15m, 1h').default('15m'),
   JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
@@ -26,6 +46,8 @@ const EnvSchema = z.object({
   MOBILITY_POLICY_VERSION: z.string().min(1).max(40).default('2026-11-v1'),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(300),
+  /** Per-IP cap on the public AI route gateway (each call runs Python Dijkstra and DB work). */
+  AI_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(30),
   GEMINI_API_KEY: z.string().optional(),
   GEMINI_MODEL: z.string().default('gemini-flash-latest'),
   CARTESIA_API_KEY: z.string().optional(),
@@ -41,6 +63,16 @@ const EnvSchema = z.object({
 });
 
 export type Env = z.infer<typeof EnvSchema>;
+
+export type TrustProxySetting = boolean | number | string;
+
+/** Converts the validated TRUST_PROXY string into Express's `trust proxy` setting. */
+export function parseTrustProxy(value: string): TrustProxySetting {
+  if (value === 'false') return false;
+  if (value === 'true') return true;
+  if (/^\d+$/.test(value)) return Number(value);
+  return value;
+}
 
 function loadEnv(): Env {
   const parsed = EnvSchema.safeParse(process.env);

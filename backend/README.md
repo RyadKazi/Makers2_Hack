@@ -38,7 +38,7 @@ src/
     admin/             open/close a passage (feeds edge:status)
     routing/           graph.ts (constraint-aware Dijkstra), graph.repository.ts (cached graph)
     mobility/          heatmap.ts (k-anonymous aggregation)
-    ai/                (step 6)
+    ai/                Python navigation-service route relay
 prisma/
   schema.prisma
   migrations/          0001_init (PostGIS), 0002_auth_reservations (tokenVersion, EXCLUDE constraint)
@@ -61,6 +61,7 @@ Every endpoint is declared once with `defineRouter(basePath, tag).route(spec, ha
 | Rooms | `GET /api/rooms?search=&status=&buildingId=&floor=&minCapacity=&stepFree=`, `GET /api/rooms/:idOrCode` | public |
 | Reservations | `GET /api/reservations`, `GET /:id` (signed in); `POST`, `PATCH /:id`, `DELETE /:id` | teacher / admin |
 | Routes | `POST /api/routes/plan`, `POST /api/routes/:id/recheck` | public (profile applied when signed in) |
+| AI navigation | `POST /api/ai/route`, `GET /api/ai/health` | public (proxied to FastAPI by Node) |
 | Mobility | `GET/POST/DELETE /api/mobility/consent`, `DELETE /api/mobility/data`, `POST /api/mobility/sessions`, `GET /sessions/current`, `POST /sessions/:id/stop`, `POST /api/mobility/points`, `POST /api/mobility/events` | signed in (+ consent) |
 | Admin | `PATCH /api/admin/edges/:id/status` (open/close a passage); `GET /api/admin/heatmap · hotspots · corrections · recommendations · stats`; `POST /corrections/:id/approve · reject`; `PATCH /recommendations/:id` | admin |
 
@@ -146,6 +147,52 @@ routing.service.ts (plan, recheck, reroute, live invalidation) · routeStore.ts 
 - `NO_ROUTE`, with the explanation.
 
 Each reroute bumps the route `version` and emits `route:invalidated`. Closing a passage also emits `route:invalidated` immediately (`rerouted: false`) to every route that uses it, so the client knows to recheck.
+
+### Python navigation gateway (`/api/ai`)
+
+See the [Express–FastAPI navigation integration guide](./AI_NAVIGATION.md) for
+setup, graph prerequisites, request/response details, and error handling.
+
+The client only talks to this Express server. Node proxies the Python Dijkstra
+service and keeps its privileged credentials server-side:
+
+```
+client ──▶ Node  POST /api/ai/route ──▶ FastAPI POST /api/v1/navigation/route ──▶ PostgreSQL graph
+                                       Authorization: Bearer ACCESU_NAVIGATION_API_KEY
+```
+
+Required configuration in `backend/.env`:
+
+```bash
+ACCESU_NAVIGATION_URL=http://127.0.0.1:8000
+ACCESU_NAVIGATION_API_KEY=accu_<prefix>.<secret>   # created with ai-service/scripts/api_keys.py
+```
+
+Start `ai-service` with the same `DATABASE_URL` and apply
+`ai-service/migrations/001_initial.sql`, then call the Node endpoint from the UI:
+
+```json
+{
+  "building_id": "BUILDING_A",
+  "start_node": "ENTRANCE",
+  "destination_node": "ROOM_1",
+  "profile": "general"
+}
+```
+
+Optional `constraints` accept `minimum_door_width_m` and `maximum_ramp_slope`.
+The response is Node's stable client contract (`route.nodes`,
+`route.total_distance`, `route.floor_transitions`, `route.node_details`, and
+`route.edges`), adapted from the Python v1 envelope. Unknown buildings/nodes
+return 404, invalid or unreachable requests return 422, an unavailable or
+rejected upstream returns 502, and a missing `ACCESU_NAVIGATION_API_KEY` returns
+503 `AI_SERVICE_NOT_CONFIGURED`.
+
+`GET /api/ai/health` probes the Python service and returns
+`{ reachable, status, version }` (502 when it is down).
+
+The API key stays on the server; never expose it to the browser. The client also
+never needs the Python base URL.
 
 ## Crowdsourced mobility (privacy by design, Law 18-07)
 

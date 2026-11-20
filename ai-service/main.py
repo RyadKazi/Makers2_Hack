@@ -18,6 +18,7 @@ from analytics.security import AnalyticsSettings
 from analytics.store import AnalyticsStore
 from data.postgres import PostgresDataAccess
 from security.api_keys import SlidingWindowLimiter
+from security.network import LegacyEndpointGuard, allow_remote_legacy
 from routers.navigation import ErrorResponse, router as navigation_router
 from routers.sessions import router as sessions_router
 from routers.analytics import router as analytics_router
@@ -78,6 +79,9 @@ def create_app(
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["Content-Type", "Authorization"],
     )
+    # Legacy /buildings and /navigation routes are unauthenticated: keep them on
+    # loopback unless a deployment explicitly opts into remote access.
+    app.add_middleware(LegacyEndpointGuard, allow_remote=allow_remote_legacy())
 
     @app.exception_handler(RequestValidationError)
     async def validation_error_handler(

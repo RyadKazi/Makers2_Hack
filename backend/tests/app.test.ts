@@ -3,6 +3,7 @@ import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { createApp } from '../src/app.js';
+import { parseTrustProxy } from '../src/config/env.js';
 import { HttpError } from '../src/lib/errors.js';
 import { errorHandler, notFoundHandler } from '../src/middleware/errorHandler.js';
 import { validate } from '../src/middleware/validate.js';
@@ -27,6 +28,21 @@ describe('GET /health', () => {
     const res = await request(app).get('/health');
     expect(res.headers['x-content-type-options']).toBe('nosniff');
     expect(res.headers['x-powered-by']).toBeUndefined();
+  });
+});
+
+describe('trust proxy', () => {
+  it('is disabled by default, so client-supplied X-Forwarded-For is not trusted', () => {
+    const app = createApp({ checkDatabase: async () => true });
+    expect(app.get('trust proxy')).toBe(false);
+  });
+
+  it('parses the supported TRUST_PROXY forms', () => {
+    expect(parseTrustProxy('false')).toBe(false);
+    expect(parseTrustProxy('true')).toBe(true);
+    expect(parseTrustProxy('1')).toBe(1);
+    expect(parseTrustProxy('loopback')).toBe('loopback');
+    expect(parseTrustProxy('uniquelocal')).toBe('uniquelocal');
   });
 });
 
@@ -121,6 +137,7 @@ describe('OpenAPI', () => {
         'PATCH /api/reservations/{id}',
         'DELETE /api/reservations/{id}',
         'PATCH /api/admin/edges/{id}/status',
+        'POST /api/ai/route',
         'GET /health',
       ]),
     );
