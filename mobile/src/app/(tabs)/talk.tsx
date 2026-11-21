@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { AppScreen, AppText, Button, Card, Chip, InlineNotice, PageHeading, SectionTitle } from '@/components/ui';
+import { speechToTextService } from '@/services/speech/stt';
+import { textToSpeechService } from '@/services/speech/tts';
 import { usePreferences } from '@/state/preferences';
 
 type AacCategory = 'essentials' | 'classroom' | 'campus' | 'help';
@@ -49,7 +51,7 @@ export default function TalkScreen() {
   const [activeTab, setActiveTab] = useState<'tts' | 'stt' | 'dialogue'>('tts');
 
   // Text-To-Speech (AAC) State
-  const [inputText, setInputText] = useState('');
+  const [inputText, setInputText] = useState('Bonjour, pouvez-vous m’orienter vers la salle A-104 ?');
   const [selectedCategory, setSelectedCategory] = useState<AacCategory>('essentials');
   const [speakingState, setSpeakingState] = useState<'idle' | 'speaking'>('idle');
   const [speechSpeed, setSpeechSpeed] = useState<number>(1.0);
@@ -69,12 +71,53 @@ export default function TalkScreen() {
   ]);
   const [dialogueInput, setDialogueInput] = useState('');
 
-  const handleSpeak = (textToSpeak: string) => {
+  useEffect(() => {
+    return () => {
+      speechToTextService.stop();
+      void textToSpeechService.stop();
+    };
+  }, []);
+
+  const handleSpeak = async (textToSpeak: string) => {
     if (!textToSpeak.trim()) return;
     setSpeakingState('speaking');
-    setTimeout(() => {
+    try {
+      await textToSpeechService.speak(textToSpeak, {
+        locale: preferences.locale,
+        speed: speechSpeed,
+        onDone: () => setSpeakingState('idle'),
+        onError: () => setSpeakingState('idle'),
+      });
+    } catch {
       setSpeakingState('idle');
-    }, 2400);
+    }
+  };
+
+  const handleStopSpeaking = async () => {
+    await textToSpeechService.stop();
+    setSpeakingState('idle');
+  };
+
+  const handleToggleRecord = () => {
+    if (isRecording) {
+      speechToTextService.stop();
+      setIsRecording(false);
+    } else {
+      setIsRecording(true);
+      setSttTranscript('Écoute en cours...');
+      speechToTextService.startListening?.({
+        locale: preferences.locale,
+        onResult: (text, isFinal) => {
+          setSttTranscript(text);
+          if (isFinal) {
+            setIsRecording(false);
+          }
+        },
+        onError: () => {
+          setIsRecording(false);
+        },
+      });
+    }
   };
 
   const handleCopyTranscript = async () => {
@@ -97,12 +140,16 @@ export default function TalkScreen() {
     setMessages(prev => [...prev, newMsg]);
     setDialogueInput('');
 
-    // Simulated companion response
+    // Optional: speak user message
+    void handleSpeak(newMsg.text);
+
+    // Companion simulated response
     setTimeout(() => {
+      const respText = 'Bien reçu ! Si vous avez besoin d’autre chose, faites-moi signe.';
       const respMsg: ChatMessage = {
         id: `msg-resp-${Date.now()}`,
         sender: 'other',
-        text: 'Bien reçu ! Si vous avez besoin d’autre chose, faites-moi signe.',
+        text: respText,
         time: timeStr,
       };
       setMessages(prev => [...prev, respMsg]);
@@ -111,7 +158,6 @@ export default function TalkScreen() {
 
   const currentLang = preferences.locale;
   const filteredPhrases = AAC_PHRASES.filter(p => p.category === selectedCategory);
-
   const isRTLRow = isRTL ? 'row-reverse' : 'row';
 
   return (
@@ -119,14 +165,21 @@ export default function TalkScreen() {
       <PageHeading
         eyebrow="ACCESSIBILITY SUITE"
         title={t('talk')}
-        subtitle={preferences.locale === 'fr' ? 'Outils de communication augmentée, synthèse et transcription' : 'Assistive AAC phrases, text-to-speech and transcription'}
+        subtitle={
+          preferences.locale === 'fr'
+            ? 'Synthèse vocale native (TTS), transcription (STT) et communication assistée'
+            : 'Native speech synthesis (TTS), live transcription (STT) & assistive communication'
+        }
       />
 
       {/* Mode Switcher Tabs */}
       <View style={[styles.tabBar, { backgroundColor: palette.surface2, borderColor: palette.line }]}>
         <Pressable
           accessibilityRole="tab"
-          onPress={() => setActiveTab('tts')}
+          onPress={() => {
+            void handleStopSpeaking();
+            setActiveTab('tts');
+          }}
           style={[styles.tabButton, activeTab === 'tts' && { backgroundColor: palette.primary }]}>
           <MaterialCommunityIcons name="account-voice" size={18} color={activeTab === 'tts' ? palette.onPrimary : palette.text} />
           <AppText size={13} weight="bold" color={activeTab === 'tts' ? palette.onPrimary : palette.text}>
@@ -136,7 +189,10 @@ export default function TalkScreen() {
 
         <Pressable
           accessibilityRole="tab"
-          onPress={() => setActiveTab('stt')}
+          onPress={() => {
+            void handleStopSpeaking();
+            setActiveTab('stt');
+          }}
           style={[styles.tabButton, activeTab === 'stt' && { backgroundColor: palette.primary }]}>
           <MaterialCommunityIcons name="microphone" size={18} color={activeTab === 'stt' ? palette.onPrimary : palette.text} />
           <AppText size={13} weight="bold" color={activeTab === 'stt' ? palette.onPrimary : palette.text}>
@@ -146,7 +202,10 @@ export default function TalkScreen() {
 
         <Pressable
           accessibilityRole="tab"
-          onPress={() => setActiveTab('dialogue')}
+          onPress={() => {
+            void handleStopSpeaking();
+            setActiveTab('dialogue');
+          }}
           style={[styles.tabButton, activeTab === 'dialogue' && { backgroundColor: palette.primary }]}>
           <MaterialCommunityIcons name="forum-outline" size={18} color={activeTab === 'dialogue' ? palette.onPrimary : palette.text} />
           <AppText size={13} weight="bold" color={activeTab === 'dialogue' ? palette.onPrimary : palette.text}>
@@ -155,24 +214,33 @@ export default function TalkScreen() {
         </Pressable>
       </View>
 
-      {/* TAB 1: TEXT-TO-SOUND (AAC & TTS) */}
+      {/* TAB 1: TEXT-TO-SOUND (TTS / AAC) */}
       {activeTab === 'tts' ? (
         <View style={{ gap: 14 }}>
           {/* Custom Message Card */}
           <Card style={{ gap: 12 }}>
-            <SectionTitle title="Faire vocaliser un message" />
+            <SectionTitle title="Vocalisation de texte en direct" />
             <TextInput
               value={inputText}
               onChangeText={setInputText}
               multiline
               numberOfLines={3}
-              placeholder="Tapez le message à faire prononcer à voix haute..."
+              placeholder="Tapez le texte à faire prononcer par les haut-parleurs..."
               placeholderTextColor={palette.muted}
-              style={[styles.ttsInput, { borderColor: palette.line, backgroundColor: palette.surface2, color: palette.ink, textAlign: isRTL ? 'right' : 'left' }]}
+              style={[
+                styles.ttsInput,
+                {
+                  borderColor: palette.line,
+                  backgroundColor: palette.surface2,
+                  color: palette.ink,
+                  textAlign: isRTL ? 'right' : 'left',
+                },
+              ]}
             />
 
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <View style={{ flexDirection: 'row', gap: 6 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <AppText size={13} color={palette.muted}>Vitesse :</AppText>
                 {[0.8, 1.0, 1.2].map(spd => (
                   <Chip
                     key={spd}
@@ -183,17 +251,33 @@ export default function TalkScreen() {
                 ))}
               </View>
 
-              <Button
-                title={speakingState === 'speaking' ? 'Vocalisation…' : 'Parler'}
-                disabled={!inputText.trim() || speakingState === 'speaking'}
-                loading={speakingState === 'speaking'}
-                icon={<MaterialCommunityIcons name="volume-high" size={20} color={palette.onPrimary} />}
-                onPress={() => handleSpeak(inputText)}
-              />
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {speakingState === 'speaking' ? (
+                  <Button
+                    title="Arrêter"
+                    variant="danger"
+                    icon={<MaterialCommunityIcons name="stop" size={20} color="#FFFFFF" />}
+                    onPress={handleStopSpeaking}
+                  />
+                ) : (
+                  <Button
+                    title="Parler à voix haute"
+                    disabled={!inputText.trim()}
+                    icon={<MaterialCommunityIcons name="volume-high" size={20} color={palette.onPrimary} />}
+                    onPress={() => handleSpeak(inputText)}
+                  />
+                )}
+              </View>
             </View>
+
+            {speakingState === 'speaking' ? (
+              <InlineNotice tone="success">
+                Lecture vocale en cours sur votre appareil ({preferences.locale.toUpperCase()})...
+              </InlineNotice>
+            ) : null}
           </Card>
 
-          {/* AAC Phrase Categories */}
+          {/* AAC Quick Phrases */}
           <Card style={{ gap: 12 }}>
             <SectionTitle title={t('quickPhrases')} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
@@ -216,12 +300,14 @@ export default function TalkScreen() {
                     key={item.id}
                     onPress={() => {
                       setInputText(phraseText);
-                      handleSpeak(phraseText);
+                      void handleSpeak(phraseText);
                     }}
                     style={[styles.phraseCard, { borderColor: palette.line, backgroundColor: palette.surface2 }]}>
                     <MaterialCommunityIcons name={item.icon} size={24} color={palette.primary} />
                     <AppText size={14} weight="semibold" style={{ flex: 1 }}>{phraseText}</AppText>
-                    <MaterialCommunityIcons name="volume-medium" size={18} color={palette.muted} />
+                    <View style={[styles.speakIconBadge, { backgroundColor: palette.primary }]}>
+                      <MaterialCommunityIcons name="volume-high" size={16} color={palette.onPrimary} />
+                    </View>
                   </Pressable>
                 );
               })}
@@ -230,14 +316,14 @@ export default function TalkScreen() {
         </View>
       ) : null}
 
-      {/* TAB 2: SOUND-TO-TEXT (STT) */}
+      {/* TAB 2: SOUND-TO-TEXT (STT / RECOGNITION) */}
       {activeTab === 'stt' ? (
         <View style={{ gap: 14 }}>
           <Card style={{ gap: 14, alignItems: 'center', paddingVertical: 24 }}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={isRecording ? 'Arrêter l’écoute' : 'Démarrer l’écoute'}
-              onPress={() => setIsRecording(!isRecording)}
+              accessibilityLabel={isRecording ? 'Arrêter l’enregistrement' : 'Activer le micro'}
+              onPress={handleToggleRecord}
               style={[
                 styles.micButton,
                 {
@@ -248,18 +334,29 @@ export default function TalkScreen() {
               <MaterialCommunityIcons name={isRecording ? 'stop' : 'microphone'} size={42} color={palette.onPrimary} />
             </Pressable>
 
-            <AppText size={16} weight="bold">
-              {isRecording ? 'Écoute active en cours…' : 'Appuyez pour transcrire la voix'}
+            <AppText size={17} weight="bold">
+              {isRecording ? 'Écoute vocale active...' : 'Appuyez pour activer la transcription'}
             </AppText>
-            <AppText size={13} color={palette.muted} style={{ textAlign: 'center' }}>
-              Reconnaissance vocale adaptée aux amphis et cours en direct
-            </AppText>
+
+            {isRecording ? (
+              <View style={styles.soundWaveRow}>
+                <View style={[styles.soundBar, { height: 18, backgroundColor: palette.danger }]} />
+                <View style={[styles.soundBar, { height: 28, backgroundColor: palette.danger }]} />
+                <View style={[styles.soundBar, { height: 14, backgroundColor: palette.danger }]} />
+                <View style={[styles.soundBar, { height: 32, backgroundColor: palette.danger }]} />
+                <View style={[styles.soundBar, { height: 20, backgroundColor: palette.danger }]} />
+              </View>
+            ) : (
+              <AppText size={13} color={palette.muted} style={{ textAlign: 'center' }}>
+                Capture audio adaptée aux cours magistraux, amphis et échanges sur le campus
+              </AppText>
+            )}
           </Card>
 
           {/* Transcript Output Box */}
           <Card style={{ gap: 12 }}>
             <View style={[styles.transcriptHeader, { flexDirection: isRTLRow }]}>
-              <SectionTitle title="Transcription en temps réel" />
+              <SectionTitle title="Transcription du discours" />
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <Pressable onPress={handleCopyTranscript} hitSlop={8}>
                   <MaterialCommunityIcons name="content-copy" size={20} color={palette.primary} />
@@ -270,13 +367,33 @@ export default function TalkScreen() {
               </View>
             </View>
 
-            <View style={[styles.transcriptBox, { borderColor: palette.line, backgroundColor: palette.surface2 }]}>
-              <AppText size={16} style={{ lineHeight: 26 }}>
-                {sttTranscript || 'Le texte prononcé par l’enseignant ou l’interlocuteur s’affichera ici.'}
-              </AppText>
-            </View>
+            <TextInput
+              value={sttTranscript}
+              onChangeText={setSttTranscript}
+              multiline
+              style={[
+                styles.transcriptBox,
+                {
+                  borderColor: palette.line,
+                  backgroundColor: palette.surface2,
+                  color: palette.ink,
+                  textAlign: isRTL ? 'right' : 'left',
+                },
+              ]}
+            />
 
             {copiedNotice ? <InlineNotice tone="success">Texte copié dans le presse-papier !</InlineNotice> : null}
+
+            {sttTranscript ? (
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <Button
+                  title="Lire la transcription à voix haute"
+                  icon={<MaterialCommunityIcons name="volume-high" size={18} color={palette.onPrimary} />}
+                  onPress={() => handleSpeak(sttTranscript)}
+                  style={{ flex: 1 }}
+                />
+              </View>
+            ) : null}
           </Card>
         </View>
       ) : null}
@@ -285,7 +402,7 @@ export default function TalkScreen() {
       {activeTab === 'dialogue' ? (
         <View style={{ gap: 14 }}>
           <Card style={{ gap: 12, paddingBottom: 16 }}>
-            <SectionTitle title="Conversation en direct" />
+            <SectionTitle title="Dialogue interactif étudiant & personnel" />
 
             <View style={{ gap: 10, minHeight: 240 }}>
               {messages.map(m => {
@@ -308,18 +425,23 @@ export default function TalkScreen() {
                         {m.text}
                       </AppText>
                     </View>
-                    <AppText size={11} color={palette.muted} style={{ marginTop: 2 }}>{m.time}</AppText>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                      <AppText size={11} color={palette.muted}>{m.time}</AppText>
+                      <Pressable onPress={() => handleSpeak(m.text)} hitSlop={6}>
+                        <MaterialCommunityIcons name="volume-medium" size={15} color={palette.primary} />
+                      </Pressable>
+                    </View>
                   </View>
                 );
               })}
             </View>
 
-            {/* Message Input Field */}
+            {/* Input Row */}
             <View style={[styles.chatInputRow, { borderColor: palette.line, backgroundColor: palette.surface2 }]}>
               <TextInput
                 value={dialogueInput}
                 onChangeText={setDialogueInput}
-                placeholder="Écrire votre réponse..."
+                placeholder="Écrire votre message..."
                 placeholderTextColor={palette.muted}
                 style={[styles.chatInput, { color: palette.ink }]}
               />
@@ -373,6 +495,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 12,
   },
+  speakIconBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   micButton: {
     width: 86,
     height: 86,
@@ -382,16 +511,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     elevation: 4,
   },
+  soundWaveRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: 34,
+  },
+  soundBar: {
+    width: 5,
+    borderRadius: 3,
+  },
   transcriptHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   transcriptBox: {
-    minHeight: 120,
+    minHeight: 110,
     borderWidth: 1,
     borderRadius: 14,
     padding: 14,
+    fontSize: 15,
+    lineHeight: 24,
   },
   chatBubbleWrapper: {
     maxWidth: '82%',
