@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 import type { AuthSession, Locale } from '@/types/api';
 
@@ -7,9 +8,17 @@ function resolveDefaultApiUrl(): string {
   if (envUrl && envUrl.trim().length > 0) {
     return envUrl.replace(/\/$/, '');
   }
-  // Android emulator loopback points to 10.0.2.2; standard localhost elsewhere
+  // If running in Expo Go on physical device, derive host IP from Metro debugger host
+  const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest?.debuggerHost || (Constants as any).manifest2?.extra?.expoGo?.debuggerHost;
+  if (hostUri) {
+    const host = hostUri.split(':')[0];
+    if (host && host !== 'localhost' && host !== '127.0.0.1') {
+      return `http://${host}:4000/api`;
+    }
+  }
+  // Physical device Wi-Fi fallback, or Android emulator loopback 10.0.2.2
   if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:4000/api';
+    return 'http://10.40.218.225:4000/api';
   }
   return 'http://127.0.0.1:4000/api';
 }

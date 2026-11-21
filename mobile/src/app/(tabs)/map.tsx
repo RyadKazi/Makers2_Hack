@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, Pressable, TextInput, View, type GestureResponderEvent, type LayoutChangeEvent } from 'react-native';
+import { Image, Platform, Pressable, TextInput, View, type GestureResponderEvent, type LayoutChangeEvent } from 'react-native';
 import Svg, { Circle, Path, Text as SvgText } from 'react-native-svg';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -104,6 +104,59 @@ export default function CampusMapScreen() {
   const isRTLRow = isRTL ? 'row-reverse' : 'row';
 
   return <AppScreen>
+    {/* Home Page Navbar with AccesU Logo */}
+    <View
+      style={{
+        flexDirection: isRTLRow,
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 8,
+        paddingHorizontal: 2,
+        marginBottom: 6,
+      }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <Image
+          source={require('../../../assets/images/logo.png')}
+          style={{ width: 44, height: 44 }}
+          resizeMode="contain"
+          accessibilityLabel="AccesU Logo"
+        />
+        <View>
+          <AppText size={19} weight="bold" color={palette.primary}>AccesU</AppText>
+          <AppText size={11} color={palette.muted}>{t('campus')}</AppText>
+        </View>
+      </View>
+
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('reportObstacle')}
+          onPress={startReport}
+          style={{
+            padding: 8,
+            borderRadius: 12,
+            backgroundColor: palette.surfaceRaised,
+            borderWidth: 1,
+            borderColor: palette.border,
+          }}>
+          <MaterialCommunityIcons name="alert-circle-outline" size={20} color={palette.accent} />
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('preferences')}
+          onPress={() => router.push('/accessibility-settings')}
+          style={{
+            padding: 8,
+            borderRadius: 12,
+            backgroundColor: palette.surfaceRaised,
+            borderWidth: 1,
+            borderColor: palette.border,
+          }}>
+          <MaterialCommunityIcons name="cog-outline" size={20} color={palette.text} />
+        </Pressable>
+      </View>
+    </View>
+
     <PageHeading eyebrow={t('campus')} title={t('map')} subtitle={t('shareRouteWarning')} />
     {campus.isLoading || index.isLoading ? <LoadingState label={t('loading')} /> : null}
     {campus.isError || index.isError ? <ErrorState message={t('networkError')} retryLabel={t('retry')} onRetry={() => { void campus.refetch(); void index.refetch(); }} /> : null}

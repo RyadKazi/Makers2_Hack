@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import type { Locale } from '@/types/api';
+import { speechApi } from '@/api/speech';
 
 export interface SpeechToTextService {
   startDemo(locale: Locale): Promise<string | null>;
@@ -25,6 +26,9 @@ export class HybridSpeechToText implements SpeechToTextService {
   private finish: ((value: string | null) => void) | null = null;
   private isListeningActive = false;
   private accumulatedFinalTranscript = '';
+  private audioRecorder: any = null;
+  private lastOnResult: ((text: string, isFinal?: boolean) => void) | null = null;
+  private lastLocale: Locale = 'fr';
 
   isAvailable(): boolean {
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -58,6 +62,8 @@ export class HybridSpeechToText implements SpeechToTextService {
     this.stop();
     this.isListeningActive = true;
     this.accumulatedFinalTranscript = '';
+    this.lastOnResult = options.onResult;
+    this.lastLocale = options.locale;
 
     const langTag = options.locale === 'ar' ? 'ar-DZ' : options.locale === 'en' ? 'en-US' : 'fr-FR';
 
@@ -132,51 +138,72 @@ export class HybridSpeechToText implements SpeechToTextService {
       }
     }
 
-    // ── 2. Interactive Speech Streaming Recognizer (Native Expo Go & Fallback) ──
-    const campusPrompts: Record<Locale, string[]> = {
-      fr: [
-        'Bonjour, quel est l’itinéraire le plus rapide pour la salle A-104 ?',
-        'Est-ce que l’ascenseur du bloc B est fonctionnel aujourd’hui ?',
-        'Où se trouve l’amphithéâtre Turing et y a-t-il des places PMR ?',
-        'Pouvez-vous me guider vers la bibliothèque universitaire ?',
-        'Le cours d’algorithmique a-t-il lieu en salle de TD B-201 ?',
-      ],
-      en: [
-        'Hello, what is the fastest step-free route to Room A-104?',
-        'Is the main elevator in Building B operating today?',
-        'Where is the Turing amphitheater and are there wheelchair spaces?',
-        'Can you show me the way to the central university library?',
-        'Is the algorithms class relocated to computer lab B-201?',
-      ],
-      ar: [
-        'مرحباً، ما هو المسار الأسرع والخالي من الدرجات إلى القاعة أ-104؟',
-        'هل المصعد الرئيسي في المبنى ب يعمل بشكل طبيعي اليوم؟',
-        'أين يقع مدرج تورينغ وهل يتوفر على أماكن مخصصة للكراسي المتحركة؟',
-        'كيف يمكنني الوصول إلى المكتبة الجامعية المركزية؟',
-        'هل تم نقل حصة الخوارزميات إلى قاعة الأعمال الموجهة ب-201؟',
-      ],
-    };
-
-    const targetList = campusPrompts[options.locale] || campusPrompts.fr;
-    const targetSentence = targetList[Math.floor(Math.random() * targetList.length)];
-    const words = targetSentence.split(' ');
-    let currentIdx = 0;
-
-    this.timer = setInterval(() => {
-      if (!this.isListeningActive) return;
-
-      if (currentIdx < words.length) {
-        currentIdx++;
-        const currentText = words.slice(0, currentIdx).join(' ');
-        options.onResult(currentText, currentIdx === words.length);
+    // ── 2. Native Mobile (Expo Go / Android / iOS) ──
+    if (Platform.OS !== 'web') {
+      try {
+        const { requireOptionalNativeModule } = require('expo');
+        if (requireOptionalNativeModule('ExpoAudio')) {
+          const expoAudio = require('expo-audio');
+          let AudioModule = null;
+          try {
+            AudioModule = require('expo-audio/build/AudioModule').default;
+          } catch {
+            AudioModule = expoAudio.AudioModule;
+          }
+          const perm = await expoAudio.requestRecordingPermissionsAsync?.();
+          const RecorderClass = AudioModule?.AudioRecorder || expoAudio.AudioRecorder;
+          if (perm?.granted !== false && RecorderClass && expoAudio.RecordingPresets) {
+            const recorder = new RecorderClass(expoAudio.RecordingPresets.HIGH_QUALITY);
+            await recorder.prepareToRecordAsync?.();
+            recorder.record();
+            this.audioRecorder = recorder;
+          }
+        }
+      } catch (permErr) {
+        console.warn('[STT] Native microphone recording error:', permErr);
       }
-    }, 400);
+    }
   }
 
   stop(): void {
     this.isListeningActive = false;
 
-    // 1. Stop Web SpeechRecognition
+    // 1. Process Native Audio Recording via Backend AI Whisper
+    if (this.audioRecorder) {
+      const rec = this.audioRecorder;
+      this.audioRecorder = null;
+      const onResult = this.lastOnResult;
+      const locale = this.lastLocale;
+      void (async () => {
+        try {
+          await rec.stop();
+          const uri = rec.uri;
+          if (uri && onResult) {
+            const res = await fetch(uri);
+            const blob = await res.blob();
+            const reader = new FileReader();
+            reader.onloadend = async () => {
+              const base64Data = reader.result as string;
+              if (base64Data) {
+                try {
+                  const resp = await speechApi.transcribe(base64Data, locale);
+                  if (resp.text && resp.text.trim()) {
+                    onResult(resp.text.trim(), true);
+                  }
+                } catch (e) {
+                  console.warn('[STT] Transcribe API error:', e);
+                }
+              }
+            };
+            reader.readAsDataURL(blob);
+          }
+        } catch (err) {
+          console.warn('[STT] Error stopping recorder:', err);
+        }
+      })();
+    }
+
+    // 2. Stop Web SpeechRecognition
     if (this.recognition) {
       try {
         this.recognition.onend = null;
@@ -187,7 +214,7 @@ export class HybridSpeechToText implements SpeechToTextService {
       this.recognition = null;
     }
 
-    // 2. Stop browser audio MediaStream tracks
+    // 3. Stop browser audio MediaStream tracks
     if (this.mediaStream) {
       try {
         this.mediaStream.getTracks().forEach((track: any) => track.stop());

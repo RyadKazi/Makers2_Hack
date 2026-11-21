@@ -3,7 +3,10 @@
 import os
 import logging
 from pathlib import Path
-from typing import Sequence
+from typing import Any, Sequence
+import base64
+import tempfile
+from pydantic import BaseModel
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -43,6 +46,19 @@ def configured_registry() -> BuildingRegistry:
         return BuildingRegistry()
     return BuildingRegistry.from_json_file(Path(data_file))
 
+
+_whisper_model = None
+
+def get_whisper():
+    global _whisper_model
+    if _whisper_model is None:
+        from faster_whisper import WhisperModel
+        _whisper_model = WhisperModel("tiny", device="cpu", compute_type="int8")
+    return _whisper_model
+
+class TranscribePayload(BaseModel):
+    audioBase64: str
+    lang: str | None = "fr"
 
 def create_app(
     registry: BuildingRegistry | None = None,
@@ -141,6 +157,31 @@ def create_app(
             "version": "0.2.0",
             "available_buildings": len(app.state.building_registry.all()),
         }
+
+    @app.post("/transcribe", tags=["speech"])
+    async def transcribe(payload: TranscribePayload) -> dict[str, Any]:
+        raw_b64 = payload.audioBase64
+        if "," in raw_b64:
+            raw_b64 = raw_b64.split(",", 1)[1]
+        audio_bytes = base64.b64decode(raw_b64)
+        with tempfile.NamedTemporaryFile(suffix=".m4a", delete=False) as tmp:
+            tmp.write(audio_bytes)
+            tmp_path = tmp.name
+        try:
+            model = get_whisper()
+            lang_code = "ar" if (payload.lang or "").startswith("ar") else "en" if (payload.lang or "").startswith("en") else "fr"
+            segments, info = model.transcribe(tmp_path, language=lang_code)
+            text = " ".join([s.text.strip() for s in segments]).strip()
+            return {"success": True, "text": text, "language": info.language}
+        except Exception as e:
+            logging.getLogger("accesu.api").warning("Transcription error: %s", e)
+            return {"success": False, "text": ""}
+        finally:
+            if os.path.exists(tmp_path):
+                try:
+                    os.remove(tmp_path)
+                except Exception:
+                    pass
 
     app.include_router(navigation_router)
     app.include_router(sessions_router)

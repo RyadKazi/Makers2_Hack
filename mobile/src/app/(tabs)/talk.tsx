@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -57,7 +57,9 @@ export default function TalkScreen() {
   const [speechSpeed, setSpeechSpeed] = useState<number>(1.0);
 
   // Sound-To-Text (STT) State
+  const sttInputRef = useRef<any>(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const [sttTranscript, setSttTranscript] = useState(
     'Bonjour, le cours de structures de données aura lieu en salle A-104 au rez-de-chaussée.'
   );
@@ -100,27 +102,28 @@ export default function TalkScreen() {
 
   const handleToggleRecord = () => {
     if (isRecording) {
-      speechToTextService.stop();
       setIsRecording(false);
+      setIsTranscribing(true);
+      speechToTextService.stop();
+      setTimeout(() => setIsTranscribing(false), 2500);
     } else {
       setIsRecording(true);
+      setIsTranscribing(false);
       setSttTranscript('');
-      if (Platform.OS === 'web' && speechToTextService.startListening) {
-        speechToTextService.startListening({
-          locale: preferences.locale,
-          onResult: text => setSttTranscript(text),
-          onError: error => {
-            console.warn('[Talk] Speech recognition error:', error);
-            setIsRecording(false);
-          },
-        });
-      } else {
-        setSttTranscript('Loading sample transcript...');
-        void speechToTextService.startDemo(preferences.locale).then(sample => {
-          if (sample) setSttTranscript(sample);
-          setIsRecording(false);
-        });
-      }
+      setTimeout(() => {
+        sttInputRef.current?.focus();
+      }, 150);
+      speechToTextService.startListening?.({
+        locale: preferences.locale,
+        onResult: (text) => {
+          setSttTranscript(text);
+          setIsTranscribing(false);
+        },
+        onError: (err) => {
+          console.warn('[Talk] Mic STT error:', err);
+          setIsTranscribing(false);
+        },
+      });
     }
   };
 
@@ -318,60 +321,33 @@ export default function TalkScreen() {
 
       {/* TAB 2: SOUND-TO-TEXT (STT / RECOGNITION) */}
       {activeTab === 'stt' ? (
-        <View style={{ gap: 14 }}>
-          <Card style={{ gap: 14, alignItems: 'center', paddingVertical: 24 }}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={isRecording ? 'Stop transcript' : Platform.OS === 'web' ? 'Start microphone transcription' : 'Show sample transcript'}
-              onPress={handleToggleRecord}
-              style={[
-                styles.micButton,
-                {
-                  backgroundColor: isRecording ? palette.danger : palette.primary,
-                  borderColor: isRecording ? '#FFA5A5' : palette.primary50,
-                },
-              ]}>
-              <MaterialCommunityIcons name={isRecording ? 'stop' : 'play'} size={42} color={palette.onPrimary} />
-            </Pressable>
+        <Card style={{ gap: 16, alignItems: 'center', paddingVertical: 22, paddingHorizontal: 16 }}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={isRecording ? 'Arrêter l’enregistrement' : 'Activer le micro'}
+            onPress={handleToggleRecord}
+            style={[
+              styles.micButton,
+              {
+                backgroundColor: isRecording ? palette.danger : palette.primary,
+                borderColor: isRecording ? '#FFA5A5' : palette.primary50,
+              },
+            ]}>
+            <MaterialCommunityIcons name={isRecording ? 'stop' : 'microphone'} size={42} color={palette.onPrimary} />
+          </Pressable>
 
-            <AppText size={17} weight="bold">
-              {isRecording ? (Platform.OS === 'web' ? 'Listening...' : 'Showing sample transcript...') : (Platform.OS === 'web' ? 'Start microphone transcription' : 'Show sample transcript')}
-            </AppText>
+          {isRecording ? (
+            <View style={styles.soundWaveRow}>
+              <View style={[styles.soundBar, { height: 18, backgroundColor: palette.danger }]} />
+              <View style={[styles.soundBar, { height: 28, backgroundColor: palette.danger }]} />
+              <View style={[styles.soundBar, { height: 14, backgroundColor: palette.danger }]} />
+              <View style={[styles.soundBar, { height: 32, backgroundColor: palette.danger }]} />
+              <View style={[styles.soundBar, { height: 20, backgroundColor: palette.danger }]} />
+            </View>
+          ) : null}
 
-            {isRecording ? (
-              <View style={styles.soundWaveRow}>
-                <View style={[styles.soundBar, { height: 18, backgroundColor: palette.danger }]} />
-                <View style={[styles.soundBar, { height: 28, backgroundColor: palette.danger }]} />
-                <View style={[styles.soundBar, { height: 14, backgroundColor: palette.danger }]} />
-                <View style={[styles.soundBar, { height: 32, backgroundColor: palette.danger }]} />
-                <View style={[styles.soundBar, { height: 20, backgroundColor: palette.danger }]} />
-              </View>
-            ) : (
-              <View style={{ alignItems: 'center', gap: 8 }}>
-                <AppText size={13} color={palette.muted} style={{ textAlign: 'center' }}>
-                  {Platform.OS === 'web' ? 'Browser speech recognition is available when supported.' : 'Mobile uses a sample transcript and does not access the microphone.'}
-                </AppText>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
-                  {[
-                    'Où est la salle A-104 ?',
-                    'Ascenseur du bloc B fonctionnel ?',
-                    'Places PMR à l’amphi Turing ?',
-                    'Itinéraire vers la bibliothèque',
-                  ].map(sample => (
-                    <Chip
-                      key={sample}
-                      label={sample}
-                      selected={false}
-                      onPress={() => setSttTranscript(sample)}
-                    />
-                  ))}
-                </View>
-              </View>
-            )}
-          </Card>
-
-          {/* Transcript Output Box */}
-          <Card style={{ gap: 12 }}>
+          {/* Converted Text Box Directly Under the Microphone */}
+          <View style={{ width: '100%', gap: 10, marginTop: 4 }}>
             <View style={[styles.transcriptHeader, { flexDirection: isRTLRow }]}>
               <SectionTitle title="Transcription du discours" />
               <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -385,13 +361,22 @@ export default function TalkScreen() {
             </View>
 
             <TextInput
+              ref={sttInputRef}
               value={sttTranscript}
               onChangeText={setSttTranscript}
+              placeholder={
+                isTranscribing
+                  ? 'Transcription en cours...'
+                  : isRecording
+                  ? 'Écoute active... Vos paroles apparaîtront ici...'
+                  : 'Vos paroles converties en texte apparaîtront ici...'
+              }
+              placeholderTextColor={palette.muted}
               multiline
               style={[
                 styles.transcriptBox,
                 {
-                  borderColor: palette.line,
+                  borderColor: isRecording ? palette.danger : palette.line,
                   backgroundColor: palette.surface2,
                   color: palette.ink,
                   textAlign: isRTL ? 'right' : 'left',
@@ -402,7 +387,7 @@ export default function TalkScreen() {
             {copiedNotice ? <InlineNotice tone="success">Texte copié dans le presse-papier !</InlineNotice> : null}
 
             {sttTranscript ? (
-              <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
                 <Button
                   title="Lire la transcription à voix haute"
                   icon={<MaterialCommunityIcons name="volume-high" size={18} color={palette.onPrimary} />}
@@ -411,8 +396,8 @@ export default function TalkScreen() {
                 />
               </View>
             ) : null}
-          </Card>
-        </View>
+          </View>
+        </Card>
       ) : null}
 
       {/* TAB 3: DIALOGUE */}

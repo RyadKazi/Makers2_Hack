@@ -3,4 +3,12 @@ import type { SpeechStatus, Locale } from '@/types/api';
 
 // The server supports TTS, but this first mobile release intentionally uses the
 // user-requested static prototype. This query is informational only.
-export const speechApi = { status: (locale: Locale) => apiRequest<SpeechStatus>(`/speech/status?lang=${locale}`, { locale }) };
+export const speechApi = {
+  status: (locale: Locale) => apiRequest<SpeechStatus>(`/speech/status?lang=${locale}`, { locale }),
+  transcribe: (audioBase64: string, locale: Locale) =>
+    apiRequest<{ success: boolean; text: string }>(`/speech/transcribe`, {
+      method: 'POST',
+      body: { audioBase64, lang: locale },
+      auth: false,
+    }),
+};

@@ -67,4 +67,45 @@ api.route(
   },
 );
 
+const TranscribeBody = z
+  .object({
+    audioBase64: z.string().min(1),
+    lang: z.string().optional(),
+  })
+  .meta({ id: 'TranscribeRequest' });
+
+const TranscribeResponse = z
+  .object({
+    success: z.boolean(),
+    text: z.string(),
+  })
+  .meta({ id: 'TranscribeResponse' });
+
+api.route(
+  {
+    method: 'post',
+    path: '/transcribe',
+    summary: 'Speech to text transcription via AI service',
+    auth: 'optional',
+    request: { body: TranscribeBody },
+    response: TranscribeResponse,
+  },
+  async ({ body }) => {
+    try {
+      const res = await fetch(`${env.ACCESU_NAVIGATION_URL}/transcribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        return { success: false, text: '' };
+      }
+      const data = (await res.json()) as { success: boolean; text: string };
+      return { success: !!data.success, text: data.text || '' };
+    } catch {
+      return { success: false, text: '' };
+    }
+  },
+);
+
 export const speechRouter = api.router;
