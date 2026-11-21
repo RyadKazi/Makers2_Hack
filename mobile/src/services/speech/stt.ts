@@ -1,16 +1,6 @@
 import { Platform } from 'react-native';
 import type { Locale } from '@/types/api';
 
-// Safe lazy resolution of native Expo Audio for Jest & non-native test environments
-function getNativeAudio() {
-  try {
-    const { Audio } = require('expo-av');
-    return Audio;
-  } catch {
-    return null;
-  }
-}
-
 export interface SpeechToTextService {
   startDemo(locale: Locale): Promise<string | null>;
   startListening?(options: {
@@ -31,7 +21,6 @@ const examples: Record<Locale, string> = {
 export class HybridSpeechToText implements SpeechToTextService {
   private recognition: any = null;
   private mediaStream: any = null;
-  private recording: any = null;
   private timer: ReturnType<typeof setInterval> | null = null;
   private finish: ((value: string | null) => void) | null = null;
   private isListeningActive = false;
@@ -118,7 +107,6 @@ export class HybridSpeechToText implements SpeechToTextService {
               return;
             }
             console.warn('[STT] SpeechRecognition event error:', errType);
-            // Do not immediately terminate recording on transient network warnings
             if (errType === 'not-allowed') {
               options.onError?.(event);
             }
@@ -144,31 +132,7 @@ export class HybridSpeechToText implements SpeechToTextService {
       }
     }
 
-    // ── 2. Native Mobile Environment: expo-av Audio.Recording ──
-    if (Platform.OS !== 'web') {
-      try {
-        const Audio = getNativeAudio();
-        if (Audio) {
-          const { status } = await Audio.requestPermissionsAsync();
-          if (status === 'granted') {
-            await Audio.setAudioModeAsync({
-              allowsRecordingIOS: true,
-              playsInSilentModeIOS: true,
-            });
-            const rec = new Audio.Recording();
-            await rec.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-            await rec.startAsync();
-            this.recording = rec;
-          } else {
-            console.warn('[STT] Audio recording permission not granted.');
-          }
-        }
-      } catch (nativeErr) {
-        console.warn('[STT] Native audio recording initialization warning:', nativeErr);
-      }
-    }
-
-    // ── 3. Interactive Speech Streaming Recognizer ──
+    // ── 2. Interactive Speech Streaming Recognizer (Native Expo Go & Fallback) ──
     const campusPrompts: Record<Locale, string[]> = {
       fr: [
         'Bonjour, quel est l’itinéraire le plus rapide pour la salle A-104 ?',
@@ -206,7 +170,7 @@ export class HybridSpeechToText implements SpeechToTextService {
         const currentText = words.slice(0, currentIdx).join(' ');
         options.onResult(currentText, currentIdx === words.length);
       }
-    }, 450);
+    }, 400);
   }
 
   stop(): void {
@@ -233,17 +197,7 @@ export class HybridSpeechToText implements SpeechToTextService {
       this.mediaStream = null;
     }
 
-    // 3. Stop native Audio.Recording
-    if (this.recording) {
-      try {
-        this.recording.stopAndUnloadAsync().catch(() => {});
-      } catch {
-        // Ignore
-      }
-      this.recording = null;
-    }
-
-    // 4. Clear interval/timeouts
+    // 3. Clear interval/timeouts
     if (this.timer) {
       clearInterval(this.timer);
       clearTimeout(this.timer as any);
