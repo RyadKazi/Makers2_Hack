@@ -59,9 +59,12 @@ export function createApp(deps: AppDeps): Express {
   app.use(
     cors({
       origin: (origin, callback) => {
-        // Same-origin / curl requests have no Origin header
-        if (!origin || env.CORS_ORIGINS.includes(origin)) callback(null, true);
-        else callback(null, false);
+        // Allow no origin (native mobile apps / curl), matching CORS_ORIGINS, or any origin in non-production
+        if (!origin || env.CORS_ORIGINS.includes(origin) || env.NODE_ENV !== 'production') {
+          callback(null, true);
+        } else {
+          callback(null, false);
+        }
       },
       credentials: true,
     }),
