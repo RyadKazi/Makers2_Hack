@@ -1,0 +1,57 @@
+# CampusWay — local development stack
+#   cp .env.example .env && cp server/.env.example server/.env && cp client/.env.example client/.env   (then edit secrets)
+#   docker compose up --build
+#   docker compose exec server npm run db:seed
+name: campusway
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-campusway}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-campusway}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  server:
+    build: ./server
+    restart: unless-stopped
+    env_file: ./server/.env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-campusway}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-campusway}?schema=public
+      CORS_ORIGINS: http://localhost:5173
+    ports:
+      - "4000:4000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./server:/app
+      - server-node-modules:/app/node_modules
+
+  client:
+    build: ./client
+    restart: unless-stopped
+    environment:
+      API_PROXY_TARGET: http://server:4000
+    ports:
+      - "5173:5173"
+    depends_on:
+      - server
+    volumes:
+      - ./client:/app
+      - client-node-modules:/app/node_modules
+
+volumes:
+  db-data:
+  server-node-modules:
+  client-node-modules:

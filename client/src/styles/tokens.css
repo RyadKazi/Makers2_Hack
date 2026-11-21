@@ -1,0 +1,198 @@
+/*
+ * Design tokens. RGB channels so Tailwind can apply alpha:
+ *   bg-primary/10 → rgb(var(--c-primary) / 0.1)
+ *
+ * Visual palette authority: Makers-main forest / olive / sage / cream.
+ * The target app keeps its WCAG 2.2 AA floor: 16px body, 48px targets,
+ * 3px focus ring (4px in HC), RTL, reduced motion, and status patterns.
+ * Themes: <html data-theme="light|dark|hc">. Pairs are checked in contrast.test.ts.
+ */
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+  --c-canvas: 248 250 247; /* source bg #F8FAF7 */
+  --c-card: 255 255 255;
+  --c-surface-2: 243 248 231; /* source cream #F3F8E7 */
+  --c-ink: 38 55 42; /* source ink #26372A */
+  --c-muted: 100 112 100; /* source muted #647064 */
+  --c-line: 228 233 223; /* source border #E4E9DF */
+  --c-line-strong: 100 112 100;
+  --c-focus: 71 108 76; /* source forest #476C4C */
+  --c-primary: 71 108 76; /* source forest #476C4C */
+  --c-primary-800: 50 76 53; /* source forest-700 #324C35 */
+  --c-primary-50: 243 248 231; /* source cream #F3F8E7 */
+  --c-on-primary: 255 255 255;
+  --c-route: 71 108 76;
+  --c-route-text: 50 76 53;
+  --c-route-100: 243 248 231;
+  --c-available: 21 128 61; /* target semantic status */
+  --c-available-bg: 220 252 231;
+  --c-occupied: 185 28 28;
+  --c-occupied-bg: 254 226 226;
+  --c-club: 194 65 12;
+  --c-club-bg: 255 237 213;
+  --c-warning: 180 83 9;
+  --c-warning-bg: 254 243 199;
+
+  /* Source palette aliases, available to presentation layers. */
+  --c-forest: 71 108 76;
+  --c-forest-hover: 60 92 64;
+  --c-olive: 125 155 95;
+  --c-sage: 164 198 164;
+  --c-soft: 202 220 188;
+  --c-cream: 243 248 231;
+
+  --shadow-card: 0 1px 2px rgb(38 55 42 / 0.05), 0 4px 12px rgb(38 55 42 / 0.06);
+  --shadow-float: 0 10px 28px rgb(38 55 42 / 0.16);
+  --border-w: 1px;
+}
+
+/* System theme resolves here. The palette stays forest/cream; contrast stays AA. */
+[data-theme='warm'] {
+  color-scheme: light;
+  --c-canvas: 248 250 247;
+  --c-card: 255 255 255;
+  --c-surface-2: 243 248 231;
+  --c-ink: 38 55 42;
+  --c-muted: 100 112 100;
+  --c-line: 228 233 223;
+  --c-line-strong: 100 112 100;
+  --c-focus: 71 108 76;
+  --c-primary: 71 108 76;
+  --c-primary-800: 50 76 53;
+  --c-primary-50: 243 248 231;
+  --c-on-primary: 255 255 255;
+  --c-route: 71 108 76;
+  --c-route-text: 50 76 53;
+  --c-route-100: 243 248 231;
+  --c-available: 16 185 129;
+  --c-available-bg: 236 253 245;
+  --c-occupied: 239 68 68;
+  --c-occupied-bg: 254 242 242;
+  --c-club: 217 119 6;
+  --c-club-bg: 254 243 199;
+  --c-warning: 217 119 6;
+  --c-warning-bg: 254 243 199;
+  --c-forest: 71 108 76;
+  --c-forest-hover: 60 92 64;
+  --c-olive: 125 155 95;
+  --c-sage: 164 198 164;
+  --c-soft: 202 220 188;
+  --c-cream: 243 248 231;
+  --shadow-card: 0 1px 2px rgb(38 55 42 / 0.05), 0 4px 12px rgb(38 55 42 / 0.06);
+  --shadow-float: 0 10px 28px rgb(38 55 42 / 0.16);
+  --border-w: 1px;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --c-canvas: 30 46 33; /* source forest-900 #1E2E21 */
+  --c-card: 39 60 42; /* source forest-800 #273C2A */
+  --c-surface-2: 50 76 53; /* source forest-700 #324C35 */
+  --c-ink: 243 248 231; /* source cream #F3F8E7 */
+  --c-muted: 202 220 188; /* source soft #CADCBC */
+  --c-line: 71 108 76;
+  --c-line-strong: 164 198 164; /* source sage #A4C6A4 */
+  --c-focus: 164 198 164;
+  --c-primary: 164 198 164;
+  --c-primary-800: 125 155 95;
+  --c-primary-50: 50 76 53;
+  --c-on-primary: 30 46 33;
+  --c-route: 164 198 164;
+  --c-route-text: 202 220 188;
+  --c-route-100: 50 76 53;
+  --c-available: 74 222 128;
+  --c-available-bg: 15 46 28;
+  --c-occupied: 252 165 165;
+  --c-occupied-bg: 58 18 20;
+  --c-club: 253 186 116;
+  --c-club-bg: 58 29 12;
+  --c-warning: 252 211 77;
+  --c-warning-bg: 58 42 10;
+  --c-forest: 71 108 76;
+  --c-forest-hover: 60 92 64;
+  --c-olive: 125 155 95;
+  --c-sage: 164 198 164;
+  --c-soft: 202 220 188;
+  --c-cream: 243 248 231;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-float: 0 8px 32px rgb(0 0 0 / 0.5);
+  --border-w: 1px;
+}
+
+/* High contrast: black / white + yellow focus. No greys, no shadows, thick borders. */
+[data-theme='hc'] {
+  color-scheme: dark;
+  --c-canvas: 0 0 0;
+  --c-card: 0 0 0;
+  --c-surface-2: 0 0 0;
+  --c-ink: 255 255 255;
+  --c-muted: 255 255 255;
+  --c-line: 255 255 255;
+  --c-line-strong: 255 255 255;
+  --c-focus: 255 214 10;
+  --c-primary: 255 214 10;
+  --c-primary-800: 255 214 10;
+  --c-primary-50: 0 0 0;
+  --c-on-primary: 0 0 0;
+  --c-route: 255 214 10;
+  --c-route-text: 255 214 10;
+  --c-route-100: 0 0 0;
+  --c-available: 255 255 255;
+  --c-available-bg: 0 0 0;
+  --c-occupied: 255 255 255;
+  --c-occupied-bg: 0 0 0;
+  --c-club: 255 255 255;
+  --c-club-bg: 0 0 0;
+  --c-warning: 255 214 10;
+  --c-warning-bg: 0 0 0;
+  --c-forest: 255 214 10;
+  --c-forest-hover: 255 214 10;
+  --c-olive: 255 214 10;
+  --c-sage: 255 214 10;
+  --c-soft: 255 255 255;
+  --c-cream: 0 0 0;
+  --shadow-card: none;
+  --shadow-float: none;
+  --border-w: 2px;
+}
+
+/* Type scale: mobile first, desktop from 1200 px. All rem, so text scaling multiplies everything. */
+:root {
+  --fs-display: 1.875rem;
+  --lh-display: 2.375rem;
+  --fs-h1: 1.5rem;
+  --lh-h1: 2rem;
+  --fs-h2: 1.25rem;
+  --lh-h2: 1.75rem;
+  --fs-kpi: 1.75rem;
+  --lh-kpi: 2.25rem;
+  --sidebar-w: 240px; /* source sidebar width; labels wrap at large text sizes */
+  --dur-fast: 150ms;
+  --dur-sheet: 250ms;
+}
+
+@media (min-width: 1200px) {
+  :root {
+    --fs-display: 2.25rem;
+    --lh-display: 2.75rem;
+    --fs-h1: 1.75rem;
+    --lh-h1: 2.25rem;
+    --fs-h2: 1.375rem;
+    --lh-h2: 1.875rem;
+    --fs-kpi: 2rem;
+    --lh-kpi: 2.5rem;
+  }
+}
+
+/* Reduced motion: system setting or the in-app switch. */
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion='full']) {
+    --dur-fast: 0.01ms;
+    --dur-sheet: 0.01ms;
+  }
+}
+[data-motion='reduce'] {
+  --dur-fast: 0.01ms;
+  --dur-sheet: 0.01ms;
+}

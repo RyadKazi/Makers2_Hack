@@ -1,0 +1,15 @@
+{
+  "name": "accesu-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Convenience scripts for the accesU server and client workspaces.",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:db": "npm --prefix server run dev:db",
+    "dev:api": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "typecheck": "npm --prefix server run typecheck && npm --prefix client run typecheck",
+    "test": "npm --prefix server run test && npm --prefix client run test",
+    "build": "npm --prefix server run build && npm --prefix client run build"
+  }
+}

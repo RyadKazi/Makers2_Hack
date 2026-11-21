@@ -1,0 +1,428 @@
+/*
+ * Floor-plan styling. Leaflet draws SVG paths; their colours come from the theme
+ * tokens through CSS (SVG presentation attributes cannot read CSS variables).
+ * Status = fill colour + pattern (#cw-p-*) + icon on the label: never colour alone.
+ */
+.cw-map.leaflet-container {
+  background: rgb(var(--c-canvas));
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.cw-map .leaflet-control-scale-line {
+  border-color: rgb(var(--c-ink));
+  background: rgb(var(--c-card) / 0.9);
+  color: rgb(var(--c-ink));
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+/* Plan geometry */
+.cw-floor {
+  fill: rgb(var(--c-card));
+  stroke: rgb(var(--c-line-strong));
+  stroke-width: 2;
+}
+.cw-footprint {
+  fill: rgb(var(--c-surface-2));
+  stroke: rgb(var(--c-ink));
+  stroke-width: 2;
+  cursor: pointer;
+}
+.cw-wall {
+  fill: none;
+  stroke: rgb(var(--c-ink));
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+.cw-wall--GLASS {
+  stroke-dasharray: 10 4;
+}
+.cw-wall--CURB,
+.cw-wall--GRASS_EDGE {
+  stroke: rgb(var(--c-muted));
+  stroke-width: 1.5;
+}
+.cw-wall--RAILING {
+  stroke: rgb(var(--c-muted));
+  stroke-dasharray: 2 4;
+}
+.cw-path {
+  fill: none;
+  stroke: rgb(var(--c-line-strong));
+  stroke-width: 3;
+  stroke-linecap: round;
+  opacity: 0.6;
+}
+.cw-closed {
+  fill: none;
+  stroke: rgb(var(--c-occupied));
+  stroke-width: 6;
+  stroke-dasharray: 1 9;
+  stroke-linecap: round;
+}
+
+/* Rooms */
+.cw-room {
+  fill: rgb(var(--c-surface-2));
+  stroke: rgb(var(--c-line-strong));
+  stroke-width: 1.5;
+  cursor: pointer;
+  transition: stroke-width var(--dur-fast) ease-out;
+}
+.cw-room:hover {
+  stroke-width: 3;
+}
+.cw-room--AVAILABLE,
+.cw-room--AVAILABLE {
+  fill: url(#cw-p-available);
+  stroke: rgb(var(--c-available));
+}
+.cw-room--TEACHER,
+.cw-room--ADMIN {
+  fill: url(#cw-p-occupied);
+  stroke: rgb(var(--c-occupied));
+}
+.cw-room--CLUB {
+  fill: url(#cw-p-club);
+  stroke: rgb(var(--c-club));
+}
+.cw-room.is-selected {
+  stroke: rgb(var(--c-primary));
+  stroke-width: 4;
+}
+
+/* Subtle highlight when a room's status changes live (removed with reduced motion). */
+@keyframes cw-flash {
+  0% {
+    stroke-width: 6;
+    stroke-opacity: 1;
+  }
+  100% {
+    stroke-width: 1.5;
+    stroke-opacity: 1;
+  }
+}
+.cw-room.is-flashing {
+  animation: cw-flash 1.6s ease-out 1;
+}
+@keyframes cw-label-flash {
+  0% {
+    box-shadow: 0 0 0 6px rgb(var(--c-primary) / 0.35);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(var(--c-primary) / 0);
+  }
+}
+.cw-label.is-flashing {
+  animation: cw-label-flash 1.6s ease-out 1;
+}
+
+/* Markers: Leaflet makes them focusable buttons; keep the global focus ring visible. */
+.cw-marker {
+  background: none;
+  border: 0;
+}
+.cw-marker:focus-visible {
+  outline: 3px solid rgb(var(--c-focus));
+  outline-offset: 3px;
+  border-radius: 10px;
+  z-index: 1000 !important;
+}
+
+.cw-pin {
+  position: relative;
+  display: block;
+  width: 36px;
+  height: 44px;
+  transform-origin: 50% 100%;
+  transition: transform var(--dur-fast) ease-out;
+  filter: drop-shadow(0 2px 3px rgb(15 23 42 / 0.3));
+}
+.cw-pin__shape {
+  position: absolute;
+  inset: 0;
+  width: 36px;
+  height: 44px;
+}
+.cw-pin__shape path {
+  stroke: #fff;
+  stroke-width: 2;
+}
+.cw-pin--primary .cw-pin__shape path {
+  fill: rgb(var(--c-primary));
+}
+.cw-pin--access .cw-pin__shape path {
+  fill: rgb(var(--c-route-text));
+}
+.cw-pin__icon {
+  position: absolute;
+  top: 7px;
+  left: 9px;
+  color: rgb(var(--c-on-primary));
+  display: flex;
+}
+.cw-pin--access .cw-pin__icon {
+  color: #fff;
+}
+.cw-pin__badge {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: rgb(var(--c-card));
+  color: rgb(var(--c-ink));
+  border: 2px solid rgb(var(--c-ink));
+}
+.cw-marker.is-selected .cw-pin {
+  transform: scale(1.15);
+}
+.cw-marker.is-selected .cw-pin__shape path {
+  stroke: rgb(var(--c-ink));
+  stroke-width: 3;
+}
+
+/* Room / building label tags (image 2): sentence case, 14 px bold, card background + border. */
+.cw-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px 2px 4px;
+  border-radius: 8px;
+  background: rgb(var(--c-card));
+  border: 1px solid rgb(var(--c-line-strong));
+  color: rgb(var(--c-ink));
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.cw-label--plain {
+  padding-inline-start: 8px;
+}
+.cw-label__swatch {
+  position: relative;
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid currentColor;
+  align-items: center;
+  justify-content: center;
+}
+.cw-label__swatch > span {
+  position: absolute;
+  inset: 0;
+}
+.cw-label__swatch svg {
+  position: relative;
+  background: rgb(var(--c-card));
+  border-radius: 999px;
+}
+.cw-label--AVAILABLE .cw-label__swatch,
+.cw-label--AVAILABLE .cw-label__swatch {
+  color: rgb(var(--c-available));
+}
+.cw-label--TEACHER .cw-label__swatch,
+.cw-label--ADMIN .cw-label__swatch {
+  color: rgb(var(--c-occupied));
+}
+.cw-label--CLUB .cw-label__swatch {
+  color: rgb(var(--c-club));
+}
+.cw-marker.is-selected .cw-label {
+  border: 2px solid rgb(var(--c-primary));
+  background: rgb(var(--c-primary-50));
+}
+.cw-label--building {
+  font-size: 1rem;
+  padding: 4px 10px;
+}
+
+/* Selected-room callout: "A-104 · Available · until 14:00" */
+.cw-callout {
+  position: relative;
+  padding: 6px 12px;
+  border-radius: 12px;
+  background: rgb(var(--c-card));
+  border: 1px solid rgb(var(--c-line));
+  box-shadow: var(--shadow-float);
+  color: rgb(var(--c-ink));
+  font-size: 1rem;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.cw-callout::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  width: 12px;
+  height: 12px;
+  background: inherit;
+  border-right: 1px solid rgb(var(--c-line));
+  border-bottom: 1px solid rgb(var(--c-line));
+  transform: translateX(-50%) rotate(45deg);
+}
+
+/* High contrast: white strokes on black, yellow pins. */
+[data-theme='hc'] .cw-floor,
+[data-theme='hc'] .cw-room,
+[data-theme='hc'] .cw-footprint {
+  stroke: #fff;
+}
+[data-theme='hc'] .cw-wall {
+  stroke: #fff;
+}
+[data-theme='hc'] .cw-pin__shape path {
+  fill: #ffd60a;
+  stroke: #fff;
+}
+[data-theme='hc'] .cw-pin__icon {
+  color: #000;
+}
+[data-theme='hc'] .cw-label,
+[data-theme='hc'] .cw-callout {
+  border: 2px solid #fff;
+}
+[data-theme='hc'] .cw-room.is-selected {
+  stroke: #ffd60a;
+}
+
+/* ───── Navigation (step 7) ───── */
+.cw-pin--dest .cw-pin__shape path {
+  fill: rgb(var(--c-ink));
+}
+.cw-pin--dest .cw-pin__icon {
+  color: rgb(var(--c-card));
+}
+/* Route: spec route colour for the line (≥ 3:1 for graphics), a card-coloured casing so it
+   stays visible over status patterns; walked part muted and dotted; a proposed reroute dashed. */
+.cw-route-casing {
+  fill: none;
+  stroke: rgb(var(--c-card));
+  stroke-width: 11;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.cw-route {
+  fill: none;
+  stroke: rgb(var(--c-route));
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.cw-route--animate {
+  stroke-dasharray: 1200;
+  stroke-dashoffset: 1200;
+  animation: cw-route-grow 1.25s cubic-bezier(.2,.75,.25,1) forwards;
+}
+.cw-route-tip {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: rgb(var(--c-route));
+  border: 2px solid rgb(var(--c-card));
+  box-shadow: 0 0 0 5px rgb(var(--c-route) / .14);
+  animation: cw-route-tip 1.25s ease-out forwards;
+}
+@keyframes cw-route-grow {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes cw-route-tip {
+  from { opacity: 0; transform: scale(.65); }
+  70% { opacity: 1; transform: scale(1.15); }
+  to { opacity: 1; transform: scale(1); }
+}
+.cw-route--done {
+  stroke: rgb(var(--c-muted));
+  stroke-width: 4;
+  stroke-dasharray: 1 8;
+}
+.cw-route--preview {
+  stroke-dasharray: 12 9;
+}
+.cw-route-start {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: rgb(var(--c-card));
+  border: 4px solid rgb(var(--c-route));
+}
+.cw-label--route {
+  border-color: rgb(var(--c-route));
+  border-width: 2px;
+}
+/* You are here: dot with a ring and a heading-less halo; accuracy circle in metres. */
+.cw-me {
+  display: flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: rgb(var(--c-primary) / 0.25);
+}
+.cw-me__dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: rgb(var(--c-primary));
+  border: 3px solid rgb(var(--c-card));
+  box-shadow: 0 0 0 1px rgb(var(--c-ink) / 0.4);
+}
+.cw-accuracy {
+  fill: rgb(var(--c-primary));
+  fill-opacity: 0.12;
+  stroke: rgb(var(--c-primary));
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+}
+.cw-picking .leaflet-container {
+  cursor: crosshair;
+}
+.cw-crosshair {
+  color: rgb(var(--c-ink));
+  filter: drop-shadow(0 0 2px rgb(var(--c-card)));
+}
+[data-theme='hc'] .cw-route-casing {
+  stroke: #000;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cw-route--animate,
+  .cw-route-tip {
+    animation: none;
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+  }
+}
+[data-theme='hc'] .cw-route--done {
+  stroke: #fff;
+}
+[data-theme='hc'] .cw-me__dot {
+  background: #ffd60a;
+  border-color: #000;
+  box-shadow: 0 0 0 2px #fff;
+}
+[data-theme='hc'] .cw-accuracy {
+  fill: #ffd60a;
+  stroke: #ffd60a;
+}
+[data-theme='hc'] .cw-pin--dest .cw-pin__shape path {
+  fill: #fff;
+  stroke: #ffd60a;
+  stroke-width: 3;
+}
+[data-theme='hc'] .cw-pin--dest .cw-pin__icon {
+  color: #000;
+}

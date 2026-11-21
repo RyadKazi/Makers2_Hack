@@ -1,0 +1,66 @@
+{
+ "routeId": null,
+ "version": 1,
+ "engine": "stand-in-dijkstra",
+ "from": {
+  "type": "poi",
+  "nodeId": "A0-ENT",
+  "name": "Entrée principale Bloc A",
+  "level": 0,
+  "floorId": "cmwoa9ohr0006wpp4w2ffaoyz",
+  "x": 56,
+  "y": 85,
+  "snappedDistanceM": null
+ },
+ "to": {
+  "type": "room",
+  "nodeId": "A1-D-A-104",
+  "name": "Salle de TD A-104 (A-104)",
+  "level": 1,
+  "floorId": "cmwoa9oi20008wpp4e2gl3nej",
+  "x": 92,
+  "y": 98.5,
+  "snappedDistanceM": null
+ },
+ "travelMode": "walking",
+ "options": [],
+ "unavailable": [
+  {
+   "option": "step-free",
+   "reason": "CONSTRAINT",
+   "message": "Too narrow: 90 cm for a 120 cm minimum (Ascenseur Bloc A).",
+   "blockers": [
+    {
+     "constraint": "minDoorWidthCm",
+     "message": "Too narrow: 90 cm for a 120 cm minimum (Ascenseur Bloc A).",
+     "edges": [
+      {
+       "edgeId": "E-A0-C36--A0-ELEV",
+       "description": "Ascenseur Bloc A",
+       "value": 90,
+       "limit": 120
+      },
+      {
+       "edgeId": "E-A0-ELEV--A1-ELEV",
+       "description": "Ascenseur Bloc A",
+       "value": 90,
+       "limit": 120
+      },
+      {
+       "edgeId": "E-A1-C36--A1-ELEV",
+       "description": "Ascenseur Bloc A",
+       "value": 90,
+       "limit": 120
+      },
+      {
+       "edgeId": "E-A1-C72--A1-D-A-104",
+       "description": "Porte A-104",
+       "value": 90,
+       "limit": 120
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

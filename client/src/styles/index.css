@@ -1,0 +1,147 @@
+@import './tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    /* The user's text scale (100–200 %) is applied here as an inline style by the theme store. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-base text-ink antialiased;
+    min-height: 100dvh;
+  }
+
+  :lang(ar) body,
+  [lang='ar'] {
+    @apply font-arabic;
+  }
+
+  /* Visible 3 px focus ring on every interactive element; never removed. */
+  :focus-visible {
+    outline: 3px solid rgb(var(--c-focus));
+    outline-offset: 2px;
+  }
+
+  [data-theme='hc'] :focus-visible {
+    outline-width: 4px;
+  }
+
+  /* Headings receive programmatic focus on navigation; keep the ring but no layout shift. */
+  [tabindex='-1']:focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  ::selection {
+    background: rgb(var(--c-primary) / 0.25);
+  }
+
+  /* Global safety net for reduced motion (system or in-app). */
+  [data-motion='reduce'] *,
+  [data-motion='reduce'] *::before,
+  [data-motion='reduce'] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    :root:not([data-motion='full']) *,
+    :root:not([data-motion='full']) *::before,
+    :root:not([data-motion='full']) *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  .border-theme {
+    border-width: var(--border-w);
+    border-color: rgb(var(--c-line));
+  }
+
+  .border-control {
+    border-width: var(--border-w);
+    border-color: rgb(var(--c-line-strong));
+  }
+
+  /* Status patterns (colour is never the only signal). Drawn with currentColor. */
+  .pattern-solid {
+    background: currentColor;
+  }
+  .pattern-stripes {
+    background: repeating-linear-gradient(45deg, currentColor 0 3px, transparent 3px 7px);
+  }
+  .pattern-dots {
+    background-image: radial-gradient(currentColor 1.6px, transparent 1.8px);
+    background-size: 6px 6px;
+  }
+  .pattern-hatch {
+    background: repeating-linear-gradient(-45deg, currentColor 0 2px, transparent 2px 6px);
+  }
+
+  .skeleton-shimmer {
+    background: linear-gradient(90deg, rgb(var(--c-surface-2)) 0%, rgb(var(--c-line) / 0.6) 50%, rgb(var(--c-surface-2)) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+  }
+
+  /* Keep transitions, but never override an explicit surface color on hover. */
+  .card-interactive {
+    transition: background-color var(--dur-fast), border-color var(--dur-fast);
+  }
+
+  /* Navigation remains visually separate without glass or ornamental shadow. */
+  .floating-dock {
+    background: rgb(var(--c-card));
+    border: 1px solid rgb(var(--c-line));
+    box-shadow: none;
+  }
+
+  .animate-fade-in {
+    animation: fade-in var(--dur-fast) ease-out both;
+  }
+}
+
+@layer utilities {
+  .sr-only-focusable:not(:focus):not(:focus-within) {
+    @apply sr-only;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  /* Flip direction-dependent icons (arrows, chevrons) in RTL. */
+  [dir='rtl'] .flip-rtl {
+    transform: scaleX(-1);
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

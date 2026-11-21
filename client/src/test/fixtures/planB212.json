@@ -1,0 +1,855 @@
+{
+ "routeId": "e58874a3-f0fd-42e7-a97e-9ef41e27a110",
+ "version": 1,
+ "engine": "stand-in-dijkstra",
+ "from": {
+  "type": "poi",
+  "nodeId": "A0-ENT",
+  "name": "Entrée principale Bloc A",
+  "level": 0,
+  "floorId": "cmwoa9ohr0006wpp4w2ffaoyz",
+  "x": 56,
+  "y": 85,
+  "snappedDistanceM": null
+ },
+ "to": {
+  "type": "room",
+  "nodeId": "B2-D-B-212",
+  "name": "Salle de TD B-212 (B-212)",
+  "level": 2,
+  "floorId": "cmwoa9oix000gwpp4oisqd5dq",
+  "x": 144,
+  "y": 101.5,
+  "snappedDistanceM": null
+ },
+ "travelMode": "wheelchair",
+ "options": [
+  {
+   "id": "step-free",
+   "label": "Step-free",
+   "stepFree": true,
+   "distanceM": 265.4,
+   "etaSec": 328,
+   "travelMode": "wheelchair",
+   "elevatorCount": 1,
+   "rampCount": 2,
+   "stairsCount": 0,
+   "levels": [
+    0,
+    1,
+    2
+   ],
+   "constraints": {
+    "closedPassages": true,
+    "avoidStairs": true,
+    "maxSlopePercent": 6,
+    "minDoorWidthCm": 85,
+    "verifiedRampsOnly": true,
+    "verifiedOnly": false,
+    "avoidEdgeIds": []
+   },
+   "prefilteredConstraints": [],
+   "warnings": [],
+   "nodeIds": [
+    "A0-ENT",
+    "O-A-ENT",
+    "O-COUR-N",
+    "O-B-ENT",
+    "O-EAST-N",
+    "O-B-SIDE",
+    "B0-SIDE",
+    "B0-C82",
+    "B0-ELEV",
+    "B1-ELEV",
+    "B2-ELEV",
+    "B2-C82",
+    "B2-C78",
+    "B2-C72",
+    "B2-C56",
+    "B2-C44",
+    "B2-C36",
+    "B2-C24",
+    "B2-D-B-212"
+   ],
+   "edgeIds": [
+    "E-O-A-ENT--A0-ENT",
+    "E-O-COUR-N--O-A-ENT",
+    "E-O-COUR-N--O-B-ENT",
+    "E-O-B-ENT--O-EAST-N",
+    "E-O-EAST-N--O-B-SIDE",
+    "E-O-B-SIDE--B0-SIDE",
+    "E-B0-SIDE--B0-C82",
+    "E-B0-C82--B0-ELEV",
+    "E-B0-ELEV--B1-ELEV",
+    "E-B1-ELEV--B2-ELEV",
+    "E-B2-C82--B2-ELEV",
+    "E-B2-C78--B2-C82",
+    "E-B2-C72--B2-C78",
+    "E-B2-C56--B2-C72",
+    "E-B2-C44--B2-C56",
+    "E-B2-C36--B2-C44",
+    "E-B2-C24--B2-C36",
+    "E-B2-C24--B2-D-B-212"
+   ],
+   "steps": [
+    {
+     "index": 0,
+     "type": "START",
+     "instruction": "Start: Entrée principale Bloc A",
+     "distanceM": 0,
+     "turn": null,
+     "fromNodeId": "A0-ENT",
+     "toNodeId": "A0-ENT",
+     "edgeIds": [],
+     "level": 0,
+     "toLevel": null,
+     "floorId": "cmwoa9ohr0006wpp4w2ffaoyz",
+     "x": 56,
+     "y": 85,
+     "landmark": "double porte vitrée automatique",
+     "shoreline": null
+    },
+    {
+     "index": 1,
+     "type": "RAMP",
+     "instruction": "Take the ramp for 5 m (5 % slope)",
+     "distanceM": 5,
+     "turn": "STRAIGHT",
+     "fromNodeId": "A0-ENT",
+     "toNodeId": "O-A-ENT",
+     "edgeIds": [
+      "E-O-A-ENT--A0-ENT"
+     ],
+     "level": 0,
+     "toLevel": null,
+     "floorId": "cmwoa9ohr0006wpp4w2ffaoyz",
+     "x": 56,
+     "y": 85,
+     "landmark": "bas de la rampe du Bloc A",
+     "shoreline": {
+      "side": "LEFT",
+      "feature": "WALL",
+      "distanceM": 5,
+      "offsetM": 0.2,
+      "hint": "Rampe douce, main courante à droite"
+     }
+    },
+    {
+     "index": 2,
+     "type": "EXIT",
+     "instruction": "Leave the building: Entrée principale Bloc A",
+     "distanceM": 0,
+     "turn": null,
+     "fromNodeId": "O-A-ENT",
+     "toNodeId": "O-A-ENT",
+     "edgeIds": [],
+     "level": 0,
+     "toLevel": null,
+     "floorId": null,
+     "x": 56,
+     "y": 80,
+     "landmark": "double porte vitrée automatique",
+     "shoreline": null
+    },
+    {
+     "index": 3,
+     "type": "WALK",
+     "instruction": "Turn left, then go straight for 155 m to poteau d’éclairage",
+     "distanceM": 154.5,
+     "turn": "LEFT",
+     "fromNodeId": "O-A-ENT",
+     "toNodeId": "O-EAST-N",
+     "edgeIds": [
+      "E-O-COUR-N--O-A-ENT",
+      "E-O-COUR-N--O-B-ENT",
+      "E-O-B-ENT--O-EAST-N"
+     ],
+     "level": 0,
+     "toLevel": null,
+     "floorId": null,
+     "x": 56,
+     "y": 80,
+     "landmark": "poteau d’éclairage",
+     "shoreline": {
+      "side": "LEFT",
+      "feature": "EDGE",
+      "distanceM": 155,
+      "offsetM": 1.5,
+      "hint": "Bordure de pelouse à droite"
+     }
+    },
+    {
+     "index": 4,
+     "type": "WALK",
+     "instruction": "Turn left, then go straight for 15 m to Devant l’entrée latérale du Bloc B",
+     "distanceM": 15,
+     "turn": "LEFT",
+     "fromNodeId": "O-EAST-N",
+     "toNodeId": "O-B-SIDE",
+     "edgeIds": [
+      "E-O-EAST-N--O-B-SIDE"
+     ],
+     "level": 0,
+     "toLevel": null,
+     "floorId": null,
+     "x": 210,
+     "y": 80,
+     "landmark": null,
+     "shoreline": {
+      "side": "LEFT",
+      "feature": "EDGE",
+      "distanceM": 15,
+      "offsetM": 6,
+      "hint": null
+     }
+    },
+    {
+     "index": 5,
+     "type": "RAMP",
+     "instruction": "Turn left, then take the ramp for 6 m (3 % slope)",
+     "distanceM": 6,
+     "turn": "LEFT",
+     "fromNodeId": "O-B-SIDE",
+     "toNodeId": "B0-SIDE",
+     "edgeIds": [
+      "E-O-B-SIDE--B0-SIDE"
+     ],
+     "level": 0,
+     "toLevel": null,
+     "floorId": "cmwoa9oij000cwpp4ixdkxovg",
+     "x": 210,
+     "y": 95,
+     "landmark": "porte métallique grise, bouton d’appel",
+     "shoreline": null
+    },
+    {
+     "index": 6,
+     "type": "ENTER",
+     "instruction": "Enter the building: Entrée latérale Bloc B (sans marche)",
+     "distanceM": 0,
+     "turn": null,
+     "fromNodeId": "B0-SIDE",
+     "toNodeId": "B0-SIDE",
+     "edgeIds": [],
+     "level": 0,
+     "toLevel": null,
+     "floorId": "cmwoa9oij000cwpp4ixdkxovg",
+     "x": 204,
+     "y": 95,
+     "landmark": "porte métallique grise, bouton d’appel",
+     "shoreline": null
+    },
+    {
+     "index": 7,
+     "type": "WALK",
+     "instruction": "Turn right, then go straight for 11 m to ascenseur, boutons en braille, annonce vocale",
+     "distanceM": 11.4,
+     "turn": "RIGHT",
+     "fromNodeId": "B0-SIDE",
+     "toNodeId": "B0-ELEV",
+     "edgeIds": [
+      "E-B0-SIDE--B0-C82",
+      "E-B0-C82--B0-ELEV"
+     ],
+     "level": 0,
+     "toLevel": null,
+     "floorId": "cmwoa9oij000cwpp4ixdkxovg",
+     "x": 204,
+     "y": 95,
+     "landmark": "ascenseur, boutons en braille, annonce vocale",
+     "shoreline": null
+    },
+    {
+     "index": 8,
+     "type": "ELEVATOR",
+     "instruction": "Take the elevator to the floor 2",
+     "distanceM": 8,
+     "turn": null,
+     "fromNodeId": "B0-ELEV",
+     "toNodeId": "B2-ELEV",
+     "edgeIds": [
+      "E-B0-ELEV--B1-ELEV",
+      "E-B1-ELEV--B2-ELEV"
+     ],
+     "level": 0,
+     "toLevel": 2,
+     "floorId": "cmwoa9oij000cwpp4ixdkxovg",
+     "x": 202,
+     "y": 106,
+     "landmark": "ascenseur, boutons en braille, annonce vocale",
+     "shoreline": null
+    },
+    {
+     "index": 9,
+     "type": "WALK",
+     "instruction": "Go straight for 6 m to Bout du couloir Bloc B",
+     "distanceM": 6,
+     "turn": "STRAIGHT",
+     "fromNodeId": "B2-ELEV",
+     "toNodeId": "B2-C82",
+     "edgeIds": [
+      "E-B2-C82--B2-ELEV"
+     ],
+     "level": 2,
+     "toLevel": null,
+     "floorId": "cmwoa9oix000gwpp4oisqd5dq",
+     "x": 202,
+     "y": 106,
+     "landmark": null,
+     "shoreline": null
+    },
+    {
+     "index": 10,
+     "type": "WALK",
+     "instruction": "Turn right, then go straight for 58 m",
+     "distanceM": 58,
+     "turn": "RIGHT",
+     "fromNodeId": "B2-C82",
+     "toNodeId": "B2-C24",
+     "edgeIds": [
+      "E-B2-C78--B2-C82",
+      "E-B2-C72--B2-C78",
+      "E-B2-C56--B2-C72",
+      "E-B2-C44--B2-C56",
+      "E-B2-C36--B2-C44",
+      "E-B2-C24--B2-C36"
+     ],
+     "level": 2,
+     "toLevel": null,
+     "floorId": "cmwoa9oix000gwpp4oisqd5dq",
+     "x": 202,
+     "y": 100,
+     "landmark": null,
+     "shoreline": {
+      "side": "BOTH",
+      "feature": "WALL",
+      "distanceM": 58,
+      "offsetM": 1.5,
+      "hint": "Longez le mur du couloir"
+     }
+    },
+    {
+     "index": 11,
+     "type": "WALK",
+     "instruction": "Turn right, then go straight for 2 m",
+     "distanceM": 1.5,
+     "turn": "RIGHT",
+     "fromNodeId": "B2-C24",
+     "toNodeId": "B2-D-B-212",
+     "edgeIds": [
+      "E-B2-C24--B2-D-B-212"
+     ],
+     "level": 2,
+     "toLevel": null,
+     "floorId": "cmwoa9oix000gwpp4oisqd5dq",
+     "x": 144,
+     "y": 100,
+     "landmark": null,
+     "shoreline": null
+    },
+    {
+     "index": 12,
+     "type": "ARRIVE",
+     "instruction": "You have arrived: Salle de TD B-212 (B-212)",
+     "distanceM": 0,
+     "turn": null,
+     "fromNodeId": "B2-D-B-212",
+     "toNodeId": "B2-D-B-212",
+     "edgeIds": [],
+     "level": 2,
+     "toLevel": null,
+     "floorId": "cmwoa9oix000gwpp4oisqd5dq",
+     "x": 144,
+     "y": 101.5,
+     "landmark": null,
+     "shoreline": null
+    }
+   ],
+   "geojson": [
+    {
+     "floorId": "cmwoa9ohr0006wpp4w2ffaoyz",
+     "level": 0,
+     "buildingCode": "A",
+     "featureCollection": {
+      "type": "FeatureCollection",
+      "features": [
+       {
+        "type": "Feature",
+        "geometry": {
+         "type": "LineString",
+         "coordinates": [
+          [
+           56,
+           85
+          ],
+          [
+           56,
+           80
+          ]
+         ]
+        },
+        "properties": {
+         "edgeId": "E-O-A-ENT--A0-ENT",
+         "kind": "RAMP",
+         "stepIndex": 1
+        }
+       },
+       {
+        "type": "Feature",
+        "geometry": {
+         "type": "Point",
+         "coordinates": [
+          56,
+          85
+         ]
+        },
+        "properties": {
+         "nodeId": "A0-ENT",
+         "role": "start",
+         "name": "Entrée principale Bloc A"
+        }
+       }
+      ]
+     }
+    },
+    {
+     "floorId": null,
+     "level": 0,
+     "buildingCode": null,
+     "featureCollection": {
+      "type": "FeatureCollection",
+      "features": [
+       {
+        "type": "Feature",
+        "geometry": {
+         "type": "LineString",
+         "coordinates": [
+          [
+           56,
+           85
+          ],
+          [
+           56,
+           80
+          ]
+         ]
+        },
+        "properties": {
+         "edgeId": "E-O-A-ENT--A0-ENT",
+         "kind": "RAMP",
+         "stepIndex": 1
+        }
+       },
+       {
+        "type": "Feature",
+        "geometry": {
+         "type": "LineString",
+         "coordinates": [
+          [
+           56,
+           80
+          ],
+          [
+           110,
+           75
+          ]
+         ]
+        },
+        "properties": {
+         "edgeId": "E-O-COUR-N--O-A-ENT",
+         "kind": "WALK",
+         "stepIndex": 3
+        }
+       },
+       {
+        "type": "Feature",
+        "geometry": {
+         "type": "LineString",
+         "coordinates": [
+          [
+           110,
+           75
+          ],
+          [
+           156,
+           80
+          ]
+         ]
+        },
+        "properties": {
+         "edgeId": "E-O-COUR-N--O-B-ENT",
+         "kind": "WALK",
+         "stepIndex": 3
+        }
+       },
+       {
+        "type": "Feature",
+        "geometry": {
+         "type": "LineString",
+         "coordinates": [
+          [
+           156,
+           80
+          ],
+          [
+           210,
+           80
+          ]
+         ]
+        },
+        "properties": {
+         "edgeId": "E-O-B-ENT--O-EAST-N",
+         "kind": "WALK",
+         "stepIndex": 3
+        }
+       },
+       {
+        "type": "Feature",
+        "geometry": {
+         "type": "LineString",
+         "coordinates": [
+          [
+           210,
+           80
+          ],
+          [
+           210,
+           95
+          ]
+         ]
+        },
+        "properties": {
+         "edgeId": "E-O-EAST-N--O-B-SIDE",
+         "kind": "WALK",
+         "stepIndex": 4
+        }
+       },
+       {
+        "type": "Feature",
+        "geometry": {
+         "type": "LineString",
+         "coordinates": [
+          [
+           210,
+           95
+          ],
+          [
+           204,
+           95
+          ]
+         ]
+        },
+        "properties": {
+         "edgeId": "E-O-B-SIDE--B0-SIDE",
+         "kind": "RAMP",
+         "stepIndex": 5
+        }
+       }
+      ]
+     }
+    },
+    {
+     "floorId": "cmwoa9oij000cwpp4ixdkxovg",
+     "level": 0,
+     "buildingCode": "B",
+     "featureCollection": {
+      "type": "FeatureCollection",
+      "features": [
+       {
+        "type": "Feature",
+        "geometry": {
+         "type": "LineString",
+         "coordinates": [
+          [
+           210,
+           95
+          ],
+          [
+           204,
+           95
+          ]
+         ]
+        },
+        "properties": {
+         "edgeId": "E-O-B-SIDE--B0-SIDE",
+         "kind": "RAMP",
+         "stepIndex": 5
+        }
+       },
+       {
+        "type": "Feature",
+        "geometry": {
+         "type": "LineString",
+         "coordinates": [
+          [
+           204,
+           95
+          ],
+          [
+           202,
+           100
+          ]
+         ]
+        },
+        "properties": {
+         "edgeId": "E-B0-SIDE--B0-C82",
+         "kind": "WALK",
+         "stepIndex": 7
+        }
+       },
+       {
+        "type": "Feature",
+        "geometry": {
+         "type": "LineString",
+         "coordinates": [
+          [
+           202,
+           100
+          ],
+          [
+           202,
+           106
+          ]
+         ]
+        },
+        "properties": {
+         "edgeId": "E-B0-C82--B0-ELEV",
+         "kind": "WALK",
+         "stepIndex": 7
+        }
+       },
+       {
+        "type": "Feature",
+        "geometry": {
+         "type": "Point",
+         "coordinates": [
+          202,
+          106
+         ]
+        },
+        "properties": {
+         "nodeId": "B0-ELEV",
+         "role": "transition",
+         "kind": "ELEVATOR",
+         "toLevel": 2,
+         "stepIndex": 8
+        }
+       }
+      ]
+     }
+    },
+    {
+     "floorId": "cmwoa9oix000gwpp4oisqd5dq",
+     "level": 2,
+     "buildingCode": "B",
+     "featureCollection": {
+      "type": "FeatureCollection",
+      "features": [
+       {
+        "type": "Feature",
+        "geometry": {
+         "type": "Point",
+         "coordinates": [
+          202,
+          106
+         ]
+        },
+        "properties": {
+         "nodeId": "B2-ELEV",
+         "role": "transition",
+         "kind": "ELEVATOR",
+         "fromLevel": 0,
+         "stepIndex": 8
+        }
+       },
+       {
+        "type": "Feature",
+        "geometry": {
+         "type": "LineString",
+         "coordinates": [
+          [
+           202,
+           106
+          ],
+          [
+           202,
+           100
+          ]
+         ]
+        },
+        "properties": {
+         "edgeId": "E-B2-C82--B2-ELEV",
+         "kind": "WALK",
+         "stepIndex": 9
+        }
+       },
+       {
+        "type": "Feature",
+        "geometry": {
+         "type": "LineString",
+         "coordinates": [
+          [
+           202,
+           100
+          ],
+          [
+           198,
+           100
+          ]
+         ]
+        },
+        "properties": {
+         "edgeId": "E-B2-C78--B2-C82",
+         "kind": "WALK",
+         "stepIndex": 10
+        }
+       },
+       {
+        "type": "Feature",
+        "geometry": {
+         "type": "LineString",
+         "coordinates": [
+          [
+           198,
+           100
+          ],
+          [
+           192,
+           100
+          ]
+         ]
+        },
+        "properties": {
+         "edgeId": "E-B2-C72--B2-C78",
+         "kind": "WALK",
+         "stepIndex": 10
+        }
+       },
+       {
+        "type": "Feature",
+        "geometry": {
+         "type": "LineString",
+         "coordinates": [
+          [
+           192,
+           100
+          ],
+          [
+           176,
+           100
+          ]
+         ]
+        },
+        "properties": {
+         "edgeId": "E-B2-C56--B2-C72",
+         "kind": "WALK",
+         "stepIndex": 10
+        }
+       },
+       {
+        "type": "Feature",
+        "geometry": {
+         "type": "LineString",
+         "coordinates": [
+          [
+           176,
+           100
+          ],
+          [
+           164,
+           100
+          ]
+         ]
+        },
+        "properties": {
+         "edgeId": "E-B2-C44--B2-C56",
+         "kind": "WALK",
+         "stepIndex": 10
+        }
+       },
+       {
+        "type": "Feature",
+        "geometry": {
+         "type": "LineString",
+         "coordinates": [
+          [
+           164,
+           100
+          ],
+          [
+           156,
+           100
+          ]
+         ]
+        },
+        "properties": {
+         "edgeId": "E-B2-C36--B2-C44",
+         "kind": "WALK",
+         "stepIndex": 10
+        }
+       },
+       {
+        "type": "Feature",
+        "geometry": {
+         "type": "LineString",
+         "coordinates": [
+          [
+           156,
+           100
+          ],
+          [
+           144,
+           100
+          ]
+         ]
+        },
+        "properties": {
+         "edgeId": "E-B2-C24--B2-C36",
+         "kind": "WALK",
+         "stepIndex": 10
+        }
+       },
+       {
+        "type": "Feature",
+        "geometry": {
+         "type": "LineString",
+         "coordinates": [
+          [
+           144,
+           100
+          ],
+          [
+           144,
+           101.5
+          ]
+         ]
+        },
+        "properties": {
+         "edgeId": "E-B2-C24--B2-D-B-212",
+         "kind": "WALK",
+         "stepIndex": 11
+        }
+       },
+       {
+        "type": "Feature",
+        "geometry": {
+         "type": "Point",
+         "coordinates": [
+          144,
+          101.5
+         ]
+        },
+        "properties": {
+         "nodeId": "B2-D-B-212",
+         "role": "end",
+         "name": "Salle de TD B-212 (B-212)"
+        }
+       }
+      ]
+     }
+    }
+   ]
+  }
+ ],
+ "unavailable": []
+}
