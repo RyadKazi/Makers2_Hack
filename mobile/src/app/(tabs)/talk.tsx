@@ -104,10 +104,15 @@ export default function TalkScreen() {
       setIsRecording(false);
     } else {
       setIsRecording(true);
-      setSttTranscript('Écoute en cours...');
-      void speechToTextService.startDemo(preferences.locale).then(sample => {
-        if (sample) setSttTranscript(sample);
-        setIsRecording(false);
+      setSttTranscript('');
+      speechToTextService.startListening?.({
+        locale: preferences.locale,
+        onResult: (text) => {
+          setSttTranscript(text);
+        },
+        onError: (err) => {
+          console.warn('[Talk] Mic STT error:', err);
+        },
       });
     }
   };
@@ -339,9 +344,26 @@ export default function TalkScreen() {
                 <View style={[styles.soundBar, { height: 20, backgroundColor: palette.danger }]} />
               </View>
             ) : (
-              <AppText size={13} color={palette.muted} style={{ textAlign: 'center' }}>
-                Capture audio adaptée aux cours magistraux, amphis et échanges sur le campus
-              </AppText>
+              <View style={{ alignItems: 'center', gap: 8 }}>
+                <AppText size={13} color={palette.muted} style={{ textAlign: 'center' }}>
+                  Microphone prêt • Compatible Web Speech API & reconnaissance Expo Go
+                </AppText>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
+                  {[
+                    'Où est la salle A-104 ?',
+                    'Ascenseur du bloc B fonctionnel ?',
+                    'Places PMR à l’amphi Turing ?',
+                    'Itinéraire vers la bibliothèque',
+                  ].map(sample => (
+                    <Chip
+                      key={sample}
+                      label={sample}
+                      selected={false}
+                      onPress={() => setSttTranscript(sample)}
+                    />
+                  ))}
+                </View>
+              </View>
             )}
           </Card>
 
