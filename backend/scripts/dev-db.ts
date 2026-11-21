@@ -15,11 +15,11 @@ import { USERS } from '../prisma/seed/people.js';
 import { createRng } from '../prisma/seed/random.js';
 import { resetDatabase, seedCampus, seedMobility, seedPeople } from '../prisma/seed/steps.js';
 
-const PORT = Number(process.env.DB_PORT ?? 5432);
+const PORT = Number(process.env.DB_PORT ?? 5433);
 const DATA_DIR = join(import.meta.dirname, '..', '.pgdata');
-process.env.DATABASE_URL = `postgresql://campusway:campusway@127.0.0.1:${PORT}/campusway?schema=public`;
+process.env.DATABASE_URL = `postgresql://postgres:postgres@127.0.0.1:${PORT}/postgres?schema=public&sslmode=disable&pgbouncer=true`;
 
-async function main() {
+export async function startDevDb() {
   console.log(`🚀 Starting in-process PostgreSQL (PGlite + PostGIS) on port ${PORT}...`);
   console.log(`📁 Data directory: ${DATA_DIR}`);
 
@@ -109,7 +109,9 @@ async function main() {
   process.on('SIGTERM', shutdown);
 }
 
-main().catch((err) => {
-  console.error('❌ Failed to start dev database:', err);
-  process.exit(1);
-});
+if (process.argv[1]?.includes('dev-db')) {
+  startDevDb().catch((err) => {
+    console.error('❌ Failed to start dev database:', err);
+    process.exit(1);
+  });
+}
