@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { AppScreen, AppText, Button, Card, Chip, InlineNotice, PageHeading, SectionTitle } from '@/components/ui';
@@ -105,15 +105,22 @@ export default function TalkScreen() {
     } else {
       setIsRecording(true);
       setSttTranscript('');
-      speechToTextService.startListening?.({
-        locale: preferences.locale,
-        onResult: (text) => {
-          setSttTranscript(text);
-        },
-        onError: (err) => {
-          console.warn('[Talk] Mic STT error:', err);
-        },
-      });
+      if (Platform.OS === 'web' && speechToTextService.startListening) {
+        speechToTextService.startListening({
+          locale: preferences.locale,
+          onResult: text => setSttTranscript(text),
+          onError: error => {
+            console.warn('[Talk] Speech recognition error:', error);
+            setIsRecording(false);
+          },
+        });
+      } else {
+        setSttTranscript('Loading sample transcript...');
+        void speechToTextService.startDemo(preferences.locale).then(sample => {
+          if (sample) setSttTranscript(sample);
+          setIsRecording(false);
+        });
+      }
     }
   };
 
@@ -162,11 +169,7 @@ export default function TalkScreen() {
       <PageHeading
         eyebrow="ACCESSIBILITY SUITE"
         title={t('talk')}
-        subtitle={
-          preferences.locale === 'fr'
-            ? 'Synthèse vocale native (TTS), transcription (STT) et communication assistée'
-            : 'Native speech synthesis (TTS), live transcription (STT) & assistive communication'
-        }
+        subtitle={t('prototype')}
       />
 
       {/* Mode Switcher Tabs */}
@@ -319,7 +322,7 @@ export default function TalkScreen() {
           <Card style={{ gap: 14, alignItems: 'center', paddingVertical: 24 }}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={isRecording ? 'Arrêter l’enregistrement' : 'Activer le micro'}
+              accessibilityLabel={isRecording ? 'Stop transcript' : Platform.OS === 'web' ? 'Start microphone transcription' : 'Show sample transcript'}
               onPress={handleToggleRecord}
               style={[
                 styles.micButton,
@@ -332,7 +335,7 @@ export default function TalkScreen() {
             </Pressable>
 
             <AppText size={17} weight="bold">
-              {isRecording ? 'Écoute vocale active...' : 'Appuyez pour activer la transcription'}
+              {isRecording ? (Platform.OS === 'web' ? 'Listening...' : 'Showing sample transcript...') : (Platform.OS === 'web' ? 'Start microphone transcription' : 'Show sample transcript')}
             </AppText>
 
             {isRecording ? (
@@ -346,7 +349,7 @@ export default function TalkScreen() {
             ) : (
               <View style={{ alignItems: 'center', gap: 8 }}>
                 <AppText size={13} color={palette.muted} style={{ textAlign: 'center' }}>
-                  Microphone prêt • Compatible Web Speech API & reconnaissance Expo Go
+                  {Platform.OS === 'web' ? 'Browser speech recognition is available when supported.' : 'Mobile uses a sample transcript and does not access the microphone.'}
                 </AppText>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
                   {[
