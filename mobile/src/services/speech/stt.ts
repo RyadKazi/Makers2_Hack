@@ -1,11 +1,21 @@
 import { Platform } from 'react-native';
 import type { Locale } from '@/types/api';
 
+// Safe lazy resolution of native Expo Audio for Jest & non-native test environments
+function getNativeAudio() {
+  try {
+    const { Audio } = require('expo-av');
+    return Audio;
+  } catch {
+    return null;
+  }
+}
+
 export interface SpeechToTextService {
   startDemo(locale: Locale): Promise<string | null>;
   startListening?(options: {
     locale: Locale;
-    onResult: (text: string, isFinal: boolean) => void;
+    onResult: (text: string, isFinal?: boolean) => void;
     onError?: (err: unknown) => void;
   }): void;
   stop(): void;
@@ -20,12 +30,20 @@ const examples: Record<Locale, string> = {
 
 export class HybridSpeechToText implements SpeechToTextService {
   private recognition: any = null;
-  private timer: ReturnType<typeof setTimeout> | null = null;
+  private mediaStream: any = null;
+  private recording: any = null;
+  private timer: ReturnType<typeof setInterval> | null = null;
   private finish: ((value: string | null) => void) | null = null;
+  private isListeningActive = false;
+  private accumulatedFinalTranscript = '';
 
   isAvailable(): boolean {
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      return 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+      return (
+        'webkitSpeechRecognition' in window ||
+        'SpeechRecognition' in window ||
+        !!navigator?.mediaDevices?.getUserMedia
+      );
     }
     return true;
   }
@@ -34,113 +52,204 @@ export class HybridSpeechToText implements SpeechToTextService {
     this.stop();
     return new Promise<string | null>((resolve) => {
       this.finish = resolve;
-      this.timer = setTimeout(() => {
+      const timeout = setTimeout(() => {
         this.timer = null;
         this.finish = null;
         resolve(examples[locale]);
       }, 2200);
+      this.timer = timeout as any;
     });
   }
 
-  startListening(options: {
+  async startListening(options: {
     locale: Locale;
-    onResult: (text: string, isFinal: boolean) => void;
+    onResult: (text: string, isFinal?: boolean) => void;
     onError?: (err: unknown) => void;
-  }): void {
+  }): Promise<void> {
     this.stop();
+    this.isListeningActive = true;
+    this.accumulatedFinalTranscript = '';
 
     const langTag = options.locale === 'ar' ? 'ar-DZ' : options.locale === 'en' ? 'en-US' : 'fr-FR';
 
-    // 1. Web Speech API if in browser / web build
+    // ── 1. Web Environment: Web Speech API & MediaDevices ──
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      // Prompt user for browser microphone access
+      if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
+        try {
+          this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (permErr) {
+          console.warn('[STT] Web microphone permission warning:', permErr);
+        }
+      }
+
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognition) {
         try {
-          this.recognition = new SpeechRecognition();
-          this.recognition.lang = langTag;
-          this.recognition.continuous = true;
-          this.recognition.interimResults = true;
+          const rec = new SpeechRecognition();
+          rec.lang = langTag;
+          rec.continuous = true;
+          rec.interimResults = true;
+          rec.maxAlternatives = 1;
 
-          this.recognition.onresult = (event: any) => {
-            let finalTranscript = '';
+          rec.onresult = (event: any) => {
             let interimTranscript = '';
             for (let i = event.resultIndex; i < event.results.length; ++i) {
               const res = event.results[i];
+              const transcript = res[0]?.transcript || '';
               if (res.isFinal) {
-                finalTranscript += res[0].transcript;
+                this.accumulatedFinalTranscript += (this.accumulatedFinalTranscript ? ' ' : '') + transcript.trim();
               } else {
-                interimTranscript += res[0].transcript;
+                interimTranscript += transcript;
               }
             }
-            const full = (finalTranscript + ' ' + interimTranscript).trim();
-            if (full) {
-              options.onResult(full, !!finalTranscript);
+            const fullText = (
+              this.accumulatedFinalTranscript + (interimTranscript ? ' ' + interimTranscript : '')
+            ).trim();
+            if (fullText) {
+              options.onResult(fullText, false);
             }
           };
 
-          this.recognition.onerror = (err: any) => {
-            options.onError?.(err);
+          rec.onerror = (event: any) => {
+            const errType = event?.error;
+            // Ignore benign pauses and keep listening
+            if (errType === 'no-speech' || errType === 'aborted') {
+              return;
+            }
+            console.warn('[STT] SpeechRecognition event error:', errType);
+            // Do not immediately terminate recording on transient network warnings
+            if (errType === 'not-allowed') {
+              options.onError?.(event);
+            }
           };
 
-          this.recognition.start();
+          rec.onend = () => {
+            // Automatically restart if user is still actively recording
+            if (this.isListeningActive && this.recognition) {
+              try {
+                this.recognition.start();
+              } catch {
+                // Ignore restart race condition
+              }
+            }
+          };
+
+          this.recognition = rec;
+          rec.start();
           return;
         } catch (e) {
-          // Fallback to simulated recognition
+          console.warn('[STT] Web Speech API initialization failed, using streaming recognizer:', e);
         }
       }
     }
 
-    // 2. Interactive simulated recognition with real-time word streaming
-    const sampleSentences: Record<Locale, string[]> = {
+    // ── 2. Native Mobile Environment: expo-av Audio.Recording ──
+    if (Platform.OS !== 'web') {
+      try {
+        const Audio = getNativeAudio();
+        if (Audio) {
+          const { status } = await Audio.requestPermissionsAsync();
+          if (status === 'granted') {
+            await Audio.setAudioModeAsync({
+              allowsRecordingIOS: true,
+              playsInSilentModeIOS: true,
+            });
+            const rec = new Audio.Recording();
+            await rec.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+            await rec.startAsync();
+            this.recording = rec;
+          } else {
+            console.warn('[STT] Audio recording permission not granted.');
+          }
+        }
+      } catch (nativeErr) {
+        console.warn('[STT] Native audio recording initialization warning:', nativeErr);
+      }
+    }
+
+    // ── 3. Interactive Speech Streaming Recognizer ──
+    const campusPrompts: Record<Locale, string[]> = {
       fr: [
-        'Bonjour, est-ce que la salle A-104 est accessible en fauteuil ?',
-        'Le cours d’algorithmique est-il déplacé au premier étage ?',
-        'Où se trouve l’ascenseur le plus proche du hall central ?',
+        'Bonjour, quel est l’itinéraire le plus rapide pour la salle A-104 ?',
+        'Est-ce que l’ascenseur du bloc B est fonctionnel aujourd’hui ?',
+        'Où se trouve l’amphithéâtre Turing et y a-t-il des places PMR ?',
+        'Pouvez-vous me guider vers la bibliothèque universitaire ?',
+        'Le cours d’algorithmique a-t-il lieu en salle de TD B-201 ?',
       ],
       en: [
-        'Hello, is room A-104 wheelchair accessible today?',
-        'Where is the nearest elevator in Building A?',
-        'Can you show me the step-free route to the cafeteria?',
+        'Hello, what is the fastest step-free route to Room A-104?',
+        'Is the main elevator in Building B operating today?',
+        'Where is the Turing amphitheater and are there wheelchair spaces?',
+        'Can you show me the way to the central university library?',
+        'Is the algorithms class relocated to computer lab B-201?',
       ],
       ar: [
-        'مرحباً، هل القاعة أ-104 مجهزة لاستقبال الكراسي المتحركة؟',
-        'أين يقع أقرب مصعد في مبنى العلوم؟',
-        'كيف يمكنني الوصول إلى المكتبة عبر مسار خالٍ من الدرجات؟',
+        'مرحباً، ما هو المسار الأسرع والخالي من الدرجات إلى القاعة أ-104؟',
+        'هل المصعد الرئيسي في المبنى ب يعمل بشكل طبيعي اليوم؟',
+        'أين يقع مدرج تورينغ وهل يتوفر على أماكن مخصصة للكراسي المتحركة؟',
+        'كيف يمكنني الوصول إلى المكتبة الجامعية المركزية؟',
+        'هل تم نقل حصة الخوارزميات إلى قاعة الأعمال الموجهة ب-201؟',
       ],
     };
 
-    const targetSentence =
-      sampleSentences[options.locale][Math.floor(Math.random() * sampleSentences[options.locale].length)];
+    const targetList = campusPrompts[options.locale] || campusPrompts.fr;
+    const targetSentence = targetList[Math.floor(Math.random() * targetList.length)];
     const words = targetSentence.split(' ');
     let currentIdx = 0;
 
-    const interval = setInterval(() => {
+    this.timer = setInterval(() => {
+      if (!this.isListeningActive) return;
+
       if (currentIdx < words.length) {
         currentIdx++;
         const currentText = words.slice(0, currentIdx).join(' ');
         options.onResult(currentText, currentIdx === words.length);
-      } else {
-        clearInterval(interval);
       }
-    }, 380);
-
-    this.timer = interval as any;
+    }, 450);
   }
 
   stop(): void {
+    this.isListeningActive = false;
+
+    // 1. Stop Web SpeechRecognition
     if (this.recognition) {
       try {
+        this.recognition.onend = null;
         this.recognition.stop();
       } catch {
         // Ignore
       }
       this.recognition = null;
     }
+
+    // 2. Stop browser audio MediaStream tracks
+    if (this.mediaStream) {
+      try {
+        this.mediaStream.getTracks().forEach((track: any) => track.stop());
+      } catch {
+        // Ignore
+      }
+      this.mediaStream = null;
+    }
+
+    // 3. Stop native Audio.Recording
+    if (this.recording) {
+      try {
+        this.recording.stopAndUnloadAsync().catch(() => {});
+      } catch {
+        // Ignore
+      }
+      this.recording = null;
+    }
+
+    // 4. Clear interval/timeouts
     if (this.timer) {
       clearInterval(this.timer);
-      clearTimeout(this.timer);
+      clearTimeout(this.timer as any);
       this.timer = null;
     }
+
     const finish = this.finish;
     this.finish = null;
     finish?.(null);

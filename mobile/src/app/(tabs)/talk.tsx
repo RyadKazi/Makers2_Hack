@@ -104,17 +104,14 @@ export default function TalkScreen() {
       setIsRecording(false);
     } else {
       setIsRecording(true);
-      setSttTranscript('Écoute en cours...');
+      setSttTranscript('');
       speechToTextService.startListening?.({
         locale: preferences.locale,
-        onResult: (text, isFinal) => {
+        onResult: (text) => {
           setSttTranscript(text);
-          if (isFinal) {
-            setIsRecording(false);
-          }
         },
-        onError: () => {
-          setIsRecording(false);
+        onError: (err) => {
+          console.warn('[Talk] Mic STT error:', err);
         },
       });
     }

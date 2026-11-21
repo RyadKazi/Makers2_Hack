@@ -144,10 +144,22 @@ export function SwitchRow({ title, description, value, onValueChange, disabled =
 export function InlineNotice({ children, tone = 'info' }: React.PropsWithChildren<{ tone?: 'info' | 'warning' | 'success' | 'danger' }>) {
   const { palette } = usePreferences();
   const color = tone === 'warning' ? palette.warning : tone === 'success' ? palette.success : tone === 'danger' ? palette.danger : palette.primary;
-  return <View accessibilityRole="summary" style={[styles.notice, { backgroundColor: palette.surface, borderColor: color }]}>
-    <MaterialCommunityIcons name={tone === 'danger' ? 'alert-circle-outline' : tone === 'warning' ? 'alert-outline' : tone === 'success' ? 'check-circle-outline' : 'information-outline'} size={20} color={color} />
-    <View style={styles.flex}>{typeof children === 'string' ? <AppText size={14}>{children}</AppText> : children}</View>
-  </View>;
+  return (
+    <View accessibilityRole="summary" style={[styles.notice, { backgroundColor: palette.surface, borderColor: color }]}>
+      <MaterialCommunityIcons
+        name={tone === 'danger' ? 'alert-circle-outline' : tone === 'warning' ? 'alert-outline' : tone === 'success' ? 'check-circle-outline' : 'information-outline'}
+        size={20}
+        color={color}
+      />
+      <View style={styles.flex}>
+        {React.isValidElement(children) && typeof children.type !== 'string' ? (
+          children
+        ) : (
+          <AppText size={14}>{children}</AppText>
+        )}
+      </View>
+    </View>
+  );
 }
 
 export function LoadingState({ label }: { label: string }) {

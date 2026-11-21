@@ -35,14 +35,11 @@ export default function SpeechToTextScreen() {
     if (speechToTextService.startListening) {
       speechToTextService.startListening({
         locale,
-        onResult: (recognized, isFinal) => {
+        onResult: (recognized) => {
           setText(recognized);
-          if (isFinal) {
-            setState('done');
-          }
         },
-        onError: () => {
-          setState('idle');
+        onError: (err) => {
+          console.warn('[STT Screen] Mic error:', err);
         },
       });
     } else {

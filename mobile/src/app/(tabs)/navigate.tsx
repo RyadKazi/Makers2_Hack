@@ -253,13 +253,12 @@ export default function NavigateScreen() {
       if (speechToTextService.startListening) {
         speechToTextService.startListening({
           locale: preferences.locale,
-          onResult: (text, isFinal) => {
+          onResult: (text) => {
             setSearchQuery(text);
-            if (isFinal) {
-              setIsVoiceListening(false);
-            }
           },
-          onError: () => setIsVoiceListening(false),
+          onError: (err) => {
+            console.warn('[Navigate] Voice search error:', err);
+          },
         });
       }
     }

@@ -155,11 +155,12 @@ export default function CampusMapScreen() {
                 if (speechToTextService.startListening) {
                   speechToTextService.startListening({
                     locale: preferences.locale,
-                    onResult: (text, isFinal) => {
+                    onResult: (text) => {
                       setQuery(text);
-                      if (isFinal) setIsVoiceListening(false);
                     },
-                    onError: () => setIsVoiceListening(false),
+                    onError: (err) => {
+                      console.warn('[Map] Voice search error:', err);
+                    },
                   });
                 }
               }
