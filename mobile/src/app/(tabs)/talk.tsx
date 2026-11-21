@@ -105,17 +105,9 @@ export default function TalkScreen() {
     } else {
       setIsRecording(true);
       setSttTranscript('Écoute en cours...');
-      speechToTextService.startListening?.({
-        locale: preferences.locale,
-        onResult: (text, isFinal) => {
-          setSttTranscript(text);
-          if (isFinal) {
-            setIsRecording(false);
-          }
-        },
-        onError: () => {
-          setIsRecording(false);
-        },
+      void speechToTextService.startDemo(preferences.locale).then(sample => {
+        if (sample) setSttTranscript(sample);
+        setIsRecording(false);
       });
     }
   };
@@ -331,7 +323,7 @@ export default function TalkScreen() {
                   borderColor: isRecording ? '#FFA5A5' : palette.primary50,
                 },
               ]}>
-              <MaterialCommunityIcons name={isRecording ? 'stop' : 'microphone'} size={42} color={palette.onPrimary} />
+              <MaterialCommunityIcons name={isRecording ? 'stop' : 'play'} size={42} color={palette.onPrimary} />
             </Pressable>
 
             <AppText size={17} weight="bold">

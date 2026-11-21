@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, TextInput, View, type GestureResponderEvent, type LayoutChangeEvent } from 'react-native';
+import { Platform, Pressable, TextInput, View, type GestureResponderEvent, type LayoutChangeEvent } from 'react-native';
 import Svg, { Circle, Path, Text as SvgText } from 'react-native-svg';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -165,6 +165,7 @@ export default function CampusMapScreen() {
               }
             }}
             style={{
+              display: Platform.OS === 'web' ? 'flex' : 'none',
               padding: 12,
               borderRadius: 15,
               backgroundColor: isVoiceListening ? palette.accent : palette.surfaceRaised,

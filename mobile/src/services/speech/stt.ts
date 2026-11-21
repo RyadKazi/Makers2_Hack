@@ -84,7 +84,7 @@ export class HybridSpeechToText implements SpeechToTextService {
 
           this.recognition.start();
           return;
-        } catch (e) {
+        } catch {
           // Fallback to simulated recognition
         }
       }

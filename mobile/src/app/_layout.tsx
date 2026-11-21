@@ -15,8 +15,9 @@ function AppRoutes() {
   const { palette, preferences } = usePreferences();
   const systemScheme = useColorScheme();
   const isDark = preferences.theme === 'dark' || (preferences.theme === 'system' && systemScheme === 'dark');
+  const useLightStatusBar = preferences.theme === 'hc' || preferences.highContrast || isDark;
   return <>
-    <StatusBar style="light" />
+    <StatusBar style={useLightStatusBar ? 'light' : 'dark'} />
     <Stack screenOptions={{ headerShown:false, contentStyle:{backgroundColor:palette.background}, animation:preferences.reducedMotion?'none':'fade' }}>
       <Stack.Screen name="index"/>
       <Stack.Screen name="(auth)"/>

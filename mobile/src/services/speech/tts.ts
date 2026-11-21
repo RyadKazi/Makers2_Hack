@@ -1,4 +1,5 @@
 import * as Speech from 'expo-speech';
+import { Platform } from 'react-native';
 import type { Locale } from '@/types/api';
 
 export type TtsPreviewOptions = { locale: Locale; speed: number; voice?: string };
@@ -48,33 +49,44 @@ export class NativeTextToSpeech implements TextToSpeechService {
 
   createPreview(text: string, options: TtsPreviewOptions, onEnded: () => void): PreviewHandle {
     const language = localeToLanguageTag(options.locale);
+    let ended = false;
+    let paused = false;
+    const finish = () => {
+      if (ended) return;
+      ended = true;
+      onEnded();
+    };
     Speech.stop();
     Speech.speak(text, {
       language,
       rate: options.speed,
       pitch: 1.0,
-      onDone: onEnded,
-      onStopped: onEnded,
-      onError: onEnded,
+      onDone: finish,
+      onStopped: finish,
+      onError: finish,
     });
 
     return {
       pause() {
-        Speech.stop();
+        if (ended) return;
+        if (Platform.OS === 'android') {
+          // Expo Speech cannot pause on Android; stop cleanly instead of
+          // pretending the utterance can resume from its previous position.
+          Speech.stop();
+          finish();
+          return;
+        }
+        paused = true;
+        void Speech.pause();
       },
       resume() {
-        Speech.speak(text, {
-          language,
-          rate: options.speed,
-          pitch: 1.0,
-          onDone: onEnded,
-          onStopped: onEnded,
-          onError: onEnded,
-        });
+        if (ended || !paused) return;
+        paused = false;
+        void Speech.resume();
       },
       stop() {
         Speech.stop();
-        onEnded();
+        finish();
       },
     };
   }
