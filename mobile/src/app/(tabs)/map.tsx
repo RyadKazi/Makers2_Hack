@@ -12,6 +12,8 @@ import { usePreferences } from '@/state/preferences';
 import { panViewBox, screenToLocal, zoomViewBox, type ScreenPoint, type ViewBox } from '@/utils/mapCoordinates';
 import type { Building, FloorPlan, GeoGeometry, LayerProperties, RouteLocation, RouteOption, RoutePlan, SearchIndex } from '@/types/api';
 import { rememberPlace, toggleFavourite } from '@/services/localPlaces';
+import { textToSpeechService } from '@/services/speech/tts';
+import { speechToTextService } from '@/services/speech/stt';
 
 type Place = { key: string; label: string; kind: 'room' | 'poi'; id: string; buildingCode: string; floorId: string | null; level: number };
 type MapPoint = { x: number; y: number; floorId: string; level: number };
@@ -37,6 +39,7 @@ export default function CampusMapScreen() {
   const [activeRoute, setActiveRoute] = useState<RoutePlan | null>(null);
   const [selectedOption, setSelectedOption] = useState<'fastest' | 'step-free'>('fastest');
   const [favoriteKeys, setFavoriteKeys] = useState<string[]>([]);
+  const [isVoiceListening, setIsVoiceListening] = useState(false);
 
   const buildings = useMemo(() => campus.data?.buildings ?? [], [campus.data?.buildings]);
   const selectedBuilding = buildings.find(item => item.code === buildingCode) ?? buildings[0];
@@ -120,7 +123,65 @@ export default function CampusMapScreen() {
       <PlaceButton icon="circle-slice-8" label={t('startLocation')} value={startLocation} onPress={() => { setTargetField('from'); setQuery(''); }} />
       <PlaceButton icon="map-marker-check" label={t('destination')} value={destination} onPress={() => { setTargetField('to'); setQuery(''); }} />
       {targetField ? <View style={{ gap: 8 }}>
-        <TextInput autoFocus value={query} onChangeText={setQuery} placeholder={t('searchPlaces')} placeholderTextColor={palette.muted} accessibilityLabel={t('searchPlaces')} style={{ minHeight: 50, borderWidth: 1, borderColor: palette.border, borderRadius: 15, paddingHorizontal: 14, color: palette.text, backgroundColor: palette.surfaceRaised, textAlign: isRTL ? 'right' : 'left' }} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TextInput
+            autoFocus
+            value={query}
+            onChangeText={setQuery}
+            placeholder={t('searchPlaces')}
+            placeholderTextColor={palette.muted}
+            accessibilityLabel={t('searchPlaces')}
+            style={{
+              flex: 1,
+              minHeight: 50,
+              borderWidth: 1,
+              borderColor: palette.border,
+              borderRadius: 15,
+              paddingHorizontal: 14,
+              color: palette.text,
+              backgroundColor: palette.surfaceRaised,
+              textAlign: isRTL ? 'right' : 'left',
+            }}
+          />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Dictée vocale"
+            onPress={() => {
+              if (isVoiceListening) {
+                speechToTextService.stop();
+                setIsVoiceListening(false);
+              } else {
+                setIsVoiceListening(true);
+                if (speechToTextService.startListening) {
+                  speechToTextService.startListening({
+                    locale: preferences.locale,
+                    onResult: (text, isFinal) => {
+                      setQuery(text);
+                      if (isFinal) setIsVoiceListening(false);
+                    },
+                    onError: () => setIsVoiceListening(false),
+                  });
+                }
+              }
+            }}
+            style={{
+              padding: 12,
+              borderRadius: 15,
+              backgroundColor: isVoiceListening ? palette.accent : palette.surfaceRaised,
+              borderWidth: 1,
+              borderColor: palette.border,
+            }}
+          >
+            <MaterialCommunityIcons
+              name={isVoiceListening ? 'microphone-settings' : 'microphone'}
+              size={22}
+              color={isVoiceListening ? '#FFFFFF' : palette.primary}
+            />
+          </Pressable>
+        </View>
+        {isVoiceListening ? (
+          <InlineNotice tone="info">Écoute vocale active... Parlez pour chercher un lieu.</InlineNotice>
+        ) : null}
         {results.map(place => <View key={place.key} style={{ flexDirection: isRTLRow, alignItems: 'center', borderBottomWidth: 1, borderColor: palette.border }}>
           <Pressable accessibilityRole="button" onPress={() => choosePlace(place)} style={{ flex: 1, paddingVertical: 11, gap: 2 }}>
             <AppText weight="semibold">{place.label}</AppText><AppText size={12} color={palette.muted}>{place.buildingCode} · {t('chooseFloor')} {place.level}</AppText>
@@ -165,7 +226,24 @@ export default function CampusMapScreen() {
     </Card> : null}
 
     {activeRoute && route ? <Card style={{ gap: 13 }}>
-      <SectionTitle title={t('routeSummary')} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+        <SectionTitle title={t('routeSummary')} />
+        <Chip
+          label={`Dijkstra : ${activeRoute.engine || 'stand-in-dijkstra'}`}
+          selected
+          icon={<MaterialCommunityIcons name="graphql" size={15} color={palette.onPrimary} />}
+        />
+        <Button
+          title="Écouter l’itinéraire"
+          variant="outline"
+          icon={<MaterialCommunityIcons name="volume-high" size={18} color={palette.primary} />}
+          onPress={() => {
+            const summary = `Itinéraire Dijkstra : distance de ${Math.round(route.distanceM)} mètres, durée estimée de ${Math.max(1, Math.round(route.etaSec / 60))} minutes. ${route.steps.map((s, idx) => `Étape ${idx + 1} : ${s.instruction}`).join('. ')}`;
+            void textToSpeechService.speak(summary, { locale: preferences.locale });
+          }}
+          style={{ minHeight: 40 }}
+        />
+      </View>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{activeRoute.options.map(option => <Chip key={option.id} label={option.label} selected={option.id === route.id} onPress={() => setSelectedOption(option.id)} />)}</View>
       <View style={{ flexDirection: 'row', gap: 10 }}><Metric icon="map-marker-distance" title={`${Math.round(route.distanceM)} m`} label={t('distance')} /><Metric icon="clock-outline" title={`${Math.max(1, Math.round(route.etaSec / 60))} min`} label={t('time')} /></View>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}><Chip label={`${route.elevatorCount} ${t('elevators')}`} icon={<MaterialCommunityIcons name="elevator" size={16} color={palette.primary} />} /><Chip label={`${route.rampCount} ${t('ramps')}`} icon={<MaterialCommunityIcons name="wheelchair-accessibility" size={16} color={palette.primary} />} />{!wheelchair ? <Chip label={`${route.stairsCount} ${t('stairs')}`} icon={<MaterialCommunityIcons name="stairs" size={16} color={palette.primary} />} /> : null}</View>

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -7,34 +7,37 @@ import { AppScreen, AppText, Button, Card, Chip, InlineNotice, LoadingState, Pag
 import { campusApi } from '@/api/campus';
 import { navigationApi } from '@/api/navigation';
 import { usePreferences } from '@/state/preferences';
+import { textToSpeechService } from '@/services/speech/tts';
+import { speechToTextService } from '@/services/speech/stt';
 import type { RouteLocation, RouteOption, RoutePlan, RouteStep } from '@/types/api';
 
 const DEFAULT_START_OPTIONS = [
-  { id: 'poi-ent-main', name: 'Entrée Principale Campus (Portail Sud)', kind: 'poi' },
-  { id: 'room-a-101', name: 'A-101 (Amphithéâtre Turing)', kind: 'room' },
-  { id: 'room-b-201', name: 'B-201 (Laboratoire Réseaux)', kind: 'room' },
-  { id: 'poi-cafeteria', name: 'Cafétéria Centrale', kind: 'poi' },
+  { id: 'A-001', name: 'A-001 · Service de scolarité (Bloc A RDC)', kind: 'room' },
+  { id: 'A-101', name: 'A-101 · Amphithéâtre Turing (Bloc A)', kind: 'room' },
+  { id: 'B-001', name: 'B-001 · Hall d’accueil (Bloc B RDC)', kind: 'room' },
+  { id: 'cmwpzs9ox002bvhj02prc6e3t', name: 'Portail Principal Campus', kind: 'poi' },
 ];
 
 const DEFAULT_DESTINATIONS = [
-  { id: 'room-a-104', name: 'A-104 (Salle Multimédia)', kind: 'room' },
-  { id: 'room-b-212', name: 'B-212 (Club GDG Campus)', kind: 'room' },
-  { id: 'room-c-002', name: 'C-002 (Salle des Conférences)', kind: 'room' },
-  { id: 'poi-biblio', name: 'Bibliothèque Universitaire', kind: 'poi' },
+  { id: 'B-212', name: 'B-212 · Salle Club Robotics & GDG (Bloc B Étage 2)', kind: 'room' },
+  { id: 'A-104', name: 'A-104 · Salle Multimédia (Bloc A Étage 1)', kind: 'room' },
+  { id: 'A-004', name: 'A-004 · Salle de TD A-004 (Bloc A RDC)', kind: 'room' },
+  { id: 'cmwpzs9ox002fvhj0b1is617e', name: 'Bibliothèque Universitaire Centrale', kind: 'poi' },
 ];
 
 export default function NavigateScreen() {
   const params = useLocalSearchParams<{ to?: string; toLabel?: string; from?: string; fromLabel?: string }>();
   const { t, palette, preferences, isRTL } = usePreferences();
 
-  const [fromLabel, setFromLabel] = useState(params.fromLabel || 'Entrée Principale Campus');
-  const [fromId, setFromId] = useState(params.from || 'poi-ent-main');
-  const [toLabel, setToLabel] = useState(params.toLabel || 'A-104 (Salle Multimédia)');
-  const [toId, setToId] = useState(params.to || 'room-a-104');
+  const [fromLabel, setFromLabel] = useState(params.fromLabel || 'A-001 · Service de scolarité (Bloc A)');
+  const [fromId, setFromId] = useState(params.from || 'A-001');
+  const [toLabel, setToLabel] = useState(params.toLabel || 'B-212 · Salle Club Robotics (Bloc B)');
+  const [toId, setToId] = useState(params.to || 'B-212');
 
   const [isSelectingFrom, setIsSelectingFrom] = useState(false);
   const [isSelectingTo, setIsSelectingTo] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isVoiceListening, setIsVoiceListening] = useState(false);
 
   const [mode, setMode] = useState<'walking' | 'wheelchair'>('walking');
   const [selectedOptionId, setSelectedOptionId] = useState<'fastest' | 'step-free'>('fastest');
@@ -52,8 +55,16 @@ export default function NavigateScreen() {
 
   const planMutation = useMutation({
     mutationFn: async (): Promise<RoutePlan> => {
-      const fromLoc: RouteLocation = { type: fromId.startsWith('room') ? 'room' : 'poi', id: fromId };
-      const toLoc: RouteLocation = { type: toId.startsWith('room') ? 'room' : 'poi', id: toId };
+      const fromKind =
+        (fromId.includes('-') && !fromId.startsWith('poi-') && !fromId.startsWith('cmwp')) || fromId.startsWith('room')
+          ? 'room'
+          : 'poi';
+      const toKind =
+        (toId.includes('-') && !toId.startsWith('poi-') && !toId.startsWith('cmwp')) || toId.startsWith('room')
+          ? 'room'
+          : 'poi';
+      const fromLoc: RouteLocation = { type: fromKind, id: fromId };
+      const toLoc: RouteLocation = { type: toKind, id: toId };
 
       try {
         const res = await navigationApi.plan({
@@ -68,8 +79,8 @@ export default function NavigateScreen() {
           lang: preferences.locale,
         });
         if (res && res.options?.length) return res;
-      } catch {
-        // Fallback simulated route for offline/demo use
+      } catch (err) {
+        console.warn('Navigation plan API error, using fallback:', err);
       }
 
       // Simulated RoutePlan matching specification
@@ -221,6 +232,48 @@ export default function NavigateScreen() {
   const currentStep = activeRouteOption?.steps[currentStepIndex] || activeRouteOption?.steps[0];
   const isLastStep = activeRouteOption ? currentStepIndex === activeRouteOption.steps.length - 1 : false;
 
+  // Vocalize instructions using native Text-To-Speech (TTS)
+  const speakStep = (text?: string) => {
+    const speech =
+      text ||
+      (currentStep
+        ? `${currentStep.instruction}. ${currentStep.landmark ? 'Repère : ' + currentStep.landmark : ''}`
+        : '');
+    if (speech) {
+      void textToSpeechService.speak(speech, { locale: preferences.locale });
+    }
+  };
+
+  const toggleVoiceSearch = () => {
+    if (isVoiceListening) {
+      speechToTextService.stop();
+      setIsVoiceListening(false);
+    } else {
+      setIsVoiceListening(true);
+      if (speechToTextService.startListening) {
+        speechToTextService.startListening({
+          locale: preferences.locale,
+          onResult: (text, isFinal) => {
+            setSearchQuery(text);
+            if (isFinal) {
+              setIsVoiceListening(false);
+            }
+          },
+          onError: () => setIsVoiceListening(false),
+        });
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (isAudioModalOpen && currentStep) {
+      speakStep();
+    }
+    return () => {
+      void textToSpeechService.stop();
+    };
+  }, [isAudioModalOpen, currentStepIndex]);
+
   const isRTLRow = isRTL ? 'row-reverse' : 'row';
 
   return (
@@ -228,7 +281,11 @@ export default function NavigateScreen() {
       <PageHeading
         eyebrow="CAMPUSWAY"
         title={t('navigate')}
-        subtitle={preferences.locale === 'fr' ? 'Planification d’itinéraires accessibles et guidage pas à pas' : 'Accessible route planner & turn-by-turn guidance'}
+        subtitle={
+          preferences.locale === 'fr'
+            ? 'Planification d’itinéraires accessibles & algorithme de Dijkstra'
+            : 'Accessible Dijkstra route planner & turn-by-turn guidance'
+        }
       />
 
       {/* Place Selectors */}
@@ -296,7 +353,14 @@ export default function NavigateScreen() {
       {planMutation.data && activeRouteOption ? (
         <>
           <Card style={{ gap: 14 }}>
-            <SectionTitle title="Options d’itinéraires" />
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+              <SectionTitle title="Options d’itinéraires" />
+              <Chip
+                label={`Dijkstra : ${planMutation.data.engine || 'stand-in-dijkstra'}`}
+                selected
+                icon={<MaterialCommunityIcons name="graphql" size={15} color={palette.onPrimary} />}
+              />
+            </View>
 
             {/* Option Pills */}
             <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -476,22 +540,30 @@ export default function NavigateScreen() {
               <View style={styles.audioActionGrid}>
                 <Pressable
                   accessibilityRole="button"
-                  onPress={() => {
-                    // Spoken voice replay
-                  }}
-                  style={styles.bigAudioButton}>
+                  onPress={() => speakStep()}
+                  style={styles.bigAudioButton}
+                >
                   <MaterialCommunityIcons name="replay" size={32} color="#000000" />
-                  <AppText size={18} weight="bold" color="#000000">{t('repeat')}</AppText>
+                  <AppText size={18} weight="bold" color="#000000">
+                    {t('repeat')}
+                  </AppText>
                 </Pressable>
 
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => {
-                    // Where am I query
+                    speakStep(
+                      `Vous êtes à l’étape ${currentStepIndex + 1} sur ${activeRouteOption?.steps.length}. ${
+                        currentStep.instruction
+                      }. Repère : ${currentStep.landmark || 'Poursuivez le couloir'}`
+                    );
                   }}
-                  style={styles.bigAudioButton}>
+                  style={styles.bigAudioButton}
+                >
                   <MaterialCommunityIcons name="crosshairs-gps" size={32} color="#000000" />
-                  <AppText size={18} weight="bold" color="#000000">{t('whereAmI')}</AppText>
+                  <AppText size={18} weight="bold" color="#000000">
+                    {t('whereAmI')}
+                  </AppText>
                 </Pressable>
               </View>
 
@@ -501,17 +573,26 @@ export default function NavigateScreen() {
                   disabled={currentStepIndex === 0}
                   variant="outline"
                   style={{ flex: 1, borderColor: '#FFFFFF', minHeight: 56 }}
-                  onPress={() => setCurrentStepIndex(Math.max(0, currentStepIndex - 1))}
+                  onPress={() => {
+                    const prev = Math.max(0, currentStepIndex - 1);
+                    setCurrentStepIndex(prev);
+                    const prevStep = activeRouteOption?.steps[prev];
+                    if (prevStep) speakStep(prevStep.instruction);
+                  }}
                 />
                 <Button
                   title={isLastStep ? 'Terminer' : 'Étape suivante'}
                   style={{ flex: 1, backgroundColor: '#FFD60A', minHeight: 56 }}
                   onPress={() => {
                     if (isLastStep) {
+                      speakStep('Navigation terminée. Vous êtes arrivé à destination.');
                       setIsAudioModalOpen(false);
                       setIsNavigating(false);
                     } else {
-                      setCurrentStepIndex(currentStepIndex + 1);
+                      const next = currentStepIndex + 1;
+                      setCurrentStepIndex(next);
+                      const nextStep = activeRouteOption?.steps[next];
+                      if (nextStep) speakStep(nextStep.instruction);
                     }
                   }}
                 />
@@ -519,21 +600,44 @@ export default function NavigateScreen() {
             </ScrollView>
           ) : (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-              <AppText size={18} color="#FFFFFF">Calculez d'abord un itinéraire pour démarrer l'audio.</AppText>
+              <AppText size={18} color="#FFFFFF">
+                Calculez d'abord un itinéraire pour démarrer l'audio.
+              </AppText>
             </View>
           )}
         </View>
       </Modal>
 
       {/* Place Selection Modal (From / To) */}
-      <Modal visible={isSelectingFrom || isSelectingTo} animationType="slide" transparent onRequestClose={() => { setIsSelectingFrom(false); setIsSelectingTo(false); }}>
+      <Modal
+        visible={isSelectingFrom || isSelectingTo}
+        animationType="slide"
+        transparent
+        onRequestClose={() => {
+          setIsSelectingFrom(false);
+          setIsSelectingTo(false);
+        }}
+      >
         <View style={styles.modalOverlay}>
-          <Pressable style={styles.modalBackdrop} onPress={() => { setIsSelectingFrom(false); setIsSelectingTo(false); }} />
+          <Pressable
+            style={styles.modalBackdrop}
+            onPress={() => {
+              setIsSelectingFrom(false);
+              setIsSelectingTo(false);
+            }}
+          />
           <View style={[styles.selectSheet, { backgroundColor: palette.card, borderColor: palette.line }]}>
             <View style={styles.sheetHandle} />
-            <SectionTitle title={isSelectingFrom ? 'Choisir le point de départ' : 'Choisir la destination'} />
+            <SectionTitle
+              title={isSelectingFrom ? 'Choisir le point de départ' : 'Choisir la destination'}
+            />
 
-            <View style={[styles.searchBox, { borderColor: palette.line, backgroundColor: palette.surface2 }]}>
+            <View
+              style={[
+                styles.searchBox,
+                { borderColor: palette.line, backgroundColor: palette.surface2 },
+              ]}
+            >
               <MaterialCommunityIcons name="magnify" size={20} color={palette.muted} />
               <TextInput
                 autoFocus
@@ -543,7 +647,29 @@ export default function NavigateScreen() {
                 placeholderTextColor={palette.muted}
                 style={[styles.searchInput, { color: palette.ink }]}
               />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Dictée vocale"
+                onPress={toggleVoiceSearch}
+                style={{
+                  padding: 6,
+                  borderRadius: 18,
+                  backgroundColor: isVoiceListening ? palette.accent : 'transparent',
+                }}
+              >
+                <MaterialCommunityIcons
+                  name={isVoiceListening ? 'microphone-settings' : 'microphone'}
+                  size={22}
+                  color={isVoiceListening ? '#FFFFFF' : palette.primary}
+                />
+              </Pressable>
             </View>
+
+            {isVoiceListening ? (
+              <InlineNotice tone="info">
+                Écoute vocale active... Dites le nom d’une salle ou d’un lieu.
+              </InlineNotice>
+            ) : null}
 
             <ScrollView style={{ maxHeight: 320 }} contentContainerStyle={{ gap: 8 }}>
               {searchResults.length > 0 ? (

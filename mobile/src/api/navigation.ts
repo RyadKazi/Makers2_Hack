@@ -12,5 +12,5 @@ export type PlanRouteInput = {
 };
 
 export const navigationApi = {
-  plan: (input: PlanRouteInput) => apiRequest<RoutePlan>('/routes/plan', { method: 'POST', body: input, auth: true, locale: input.lang }),
+  plan: (input: PlanRouteInput) => apiRequest<RoutePlan>('/routes/plan', { method: 'POST', body: input, auth: false, locale: input.lang }),
 };
