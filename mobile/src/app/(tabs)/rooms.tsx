@@ -1,13 +1,13 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { AppScreen, AppText, Button, Card, Chip, EmptyState, ErrorState, LoadingState, PageHeading, SectionTitle } from '@/components/ui';
-import { roomsApi, type RoomDetail, type RoomStatusCode, type RoomSummary } from '@/api/rooms';
+import { roomsApi, type RoomStatusCode, type RoomSummary } from '@/api/rooms';
 import { usePreferences } from '@/state/preferences';
 
-const STATUS_FILTERS: Array<{ key: string; label: string; code?: RoomStatusCode }> = [
+const STATUS_FILTERS: { key: string; label: string; code?: RoomStatusCode }[] = [
   { key: 'ALL', label: 'All' },
   { key: 'AVAILABLE', label: 'Free Now', code: 'AVAILABLE' },
   { key: 'TEACHER', label: 'Classes', code: 'TEACHER' },
@@ -266,7 +266,7 @@ export default function RoomsScreen() {
                             <AppText size={13} color={stColor.text}>{selectedRoom.status.title}</AppText>
                           ) : null}
                           {selectedRoom.status.until ? (
-                            <AppText size={12} color={palette.muted}>Jusqu'à {selectedRoom.status.until}</AppText>
+                            <AppText size={12} color={palette.muted}>Jusqu&apos;à {selectedRoom.status.until}</AppText>
                           ) : null}
                         </View>
                       </View>

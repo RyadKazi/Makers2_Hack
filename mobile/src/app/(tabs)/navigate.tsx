@@ -1,9 +1,9 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams } from 'expo-router';
-import { AppScreen, AppText, Button, Card, Chip, InlineNotice, LoadingState, PageHeading, SectionTitle } from '@/components/ui';
+import { AppScreen, AppText, Button, Card, Chip, InlineNotice, PageHeading, SectionTitle } from '@/components/ui';
 import { campusApi } from '@/api/campus';
 import { navigationApi } from '@/api/navigation';
 import { usePreferences } from '@/state/preferences';
@@ -233,7 +233,7 @@ export default function NavigateScreen() {
   const isLastStep = activeRouteOption ? currentStepIndex === activeRouteOption.steps.length - 1 : false;
 
   // Vocalize instructions using native Text-To-Speech (TTS)
-  const speakStep = (text?: string) => {
+  const speakStep = useCallback((text?: string) => {
     const speech =
       text ||
       (currentStep
@@ -242,7 +242,7 @@ export default function NavigateScreen() {
     if (speech) {
       void textToSpeechService.speak(speech, { locale: preferences.locale });
     }
-  };
+  }, [currentStep, preferences.locale]);
 
   const toggleVoiceSearch = () => {
     if (isVoiceListening) {
@@ -271,7 +271,7 @@ export default function NavigateScreen() {
     return () => {
       void textToSpeechService.stop();
     };
-  }, [isAudioModalOpen, currentStepIndex]);
+  }, [isAudioModalOpen, currentStep, speakStep]);
 
   const isRTLRow = isRTL ? 'row-reverse' : 'row';
 
@@ -600,7 +600,7 @@ export default function NavigateScreen() {
           ) : (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
               <AppText size={18} color="#FFFFFF">
-                Calculez d'abord un itinéraire pour démarrer l'audio.
+                Calculez d&apos;abord un itineraire pour demarrer l&apos;audio.
               </AppText>
             </View>
           )}
@@ -651,6 +651,7 @@ export default function NavigateScreen() {
                 accessibilityLabel="Dictée vocale"
                 onPress={toggleVoiceSearch}
                 style={{
+                  display: Platform.OS === 'web' ? 'flex' : 'none',
                   padding: 6,
                   borderRadius: 18,
                   backgroundColor: isVoiceListening ? palette.accent : 'transparent',
