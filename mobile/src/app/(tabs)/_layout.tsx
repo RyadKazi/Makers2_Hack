@@ -1,10 +1,16 @@
 import React from 'react';
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { AppScreen, LoadingState } from '@/components/ui';
+import { useAuth } from '@/state/auth';
 import { usePreferences } from '@/state/preferences';
 
 export default function TabLayout() {
   const { palette, t } = usePreferences();
+  const { status } = useAuth();
+
+  if (status === 'loading') return <AppScreen><LoadingState label={t('loading')} /></AppScreen>;
+  if (status !== 'authenticated') return <Redirect href="/(auth)/welcome" />;
 
   const iconColor = (color: unknown) => (typeof color === 'string' ? color : palette.muted);
 

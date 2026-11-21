@@ -71,8 +71,8 @@ export default function SpeechToTextScreen() {
       <PageHeading title={t('speechToText')} subtitle={t('prototype')} />
       <InlineNotice tone="info">
         {state === 'recording'
-          ? 'Listening to speech... Speak clearly into your microphone.'
-          : 'Interactive Speech Recognition active. Tap the microphone to dictate.'}
+          ? 'Showing a sample transcript. This mobile prototype does not access the microphone.'
+          : 'This is a transcript demo. It does not record audio or recognize live speech.'}
       </InlineNotice>
       <Card style={{ alignItems: 'center', paddingVertical: 24, gap: 15 }}>
         <Pressable
@@ -95,7 +95,7 @@ export default function SpeechToTextScreen() {
           })}
         >
           <MaterialCommunityIcons
-            name={state === 'recording' ? 'stop' : 'microphone'}
+            name={state === 'recording' ? 'stop' : 'play'}
             size={38}
             color={palette.primaryText}
           />
@@ -105,8 +105,8 @@ export default function SpeechToTextScreen() {
         </AppText>
         <AppText size={13} color={palette.muted} style={{ textAlign: 'center', paddingHorizontal: 16 }}>
           {state === 'recording'
-            ? 'Transcribing speech in real-time...'
-            : 'Press the microphone to begin voice transcription.'}
+            ? 'A sample transcript will appear here.'
+            : 'Press start to show a sample transcript.'}
         </AppText>
         <Button
           title={state === 'recording' ? t('stopDemo') : t('startDemo')}
@@ -132,7 +132,7 @@ export default function SpeechToTextScreen() {
       </View>
       <Card style={{ minHeight: 160 }}>
         <AppText size={12} weight="bold" color={palette.primary}>
-          {state === 'recording' ? 'LIVE TRANSCRIPTION' : t('prototype')}
+          {state === 'recording' ? 'SAMPLE TRANSCRIPT' : t('prototype')}
         </AppText>
         <AppText size={16} style={{ marginTop: 8 }}>
           {text || t('transcriptPlaceholder')}

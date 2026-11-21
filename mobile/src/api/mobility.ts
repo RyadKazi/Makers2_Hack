@@ -9,5 +9,7 @@ export const mobilityApi = {
   current: (locale: Locale) => apiRequest<MobilityStatus>(`/mobility/sessions/current?lang=${locale}`, { auth: true, locale }),
   start: (needsCategory: MobilityProfile, locale: Locale) => apiRequest<MobilityStatus>('/mobility/sessions', { method: 'POST', body: { needsCategory, lang: locale }, auth: true, locale }),
   stop: (id: string, locale: Locale) => apiRequest<MobilityStatus>(`/mobility/sessions/${encodeURIComponent(id)}/stop?lang=${locale}`, { method: 'POST', auth: true, locale }),
-  report: (body: { sessionId: string; type: DifficultyType; note?: string; x: number; y: number; level: number; floorId?: string; recordedAt?: string }, locale: Locale) => apiRequest<{ id: string; type: string; edgeId: string | null; recordedAt: string }>('/mobility/events', { method: 'POST', body: { ...body, lang: locale }, auth: true, locale }),
+  // EventBody is strict and does not accept a lang field. The locale header is
+  // still sent for consistent request handling without changing the payload.
+  report: (body: { sessionId: string; type: DifficultyType; note?: string; x: number; y: number; level: number; floorId?: string; recordedAt?: string }, locale: Locale) => apiRequest<{ id: string; type: string; edgeId: string | null; recordedAt: string }>('/mobility/events', { method: 'POST', body, auth: true, locale }),
 };

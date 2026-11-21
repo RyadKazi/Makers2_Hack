@@ -7,7 +7,7 @@ AccesU Mobile is a React Native application for students to explore campus map d
 - Expo SDK 58, Expo Router, TypeScript, React Native, TanStack Query.
 - Login, registration, persistent bearer token storage with Expo SecureStore, cookie-based refresh attempts, profile and accessibility settings.
 - Campus/building/floor layers and destination search from the backend; route requests use the backend route planner and render returned floor geometry, nodes, steps, warnings, and route alternatives.
-- Speech-to-text and text-to-speech are explicitly simulated prototypes. They do not record, recognize, synthesize, or send audio.
+- Speech-to-text is a sample transcript prototype and does not access the microphone. Text-to-speech uses the device's built-in speech engine; it does not send audio to the backend.
 - Mobility sharing requires the backend's consent policy and an explicit start action. This app does not collect background location or upload position samples. A persistent in-app banner exposes an active session and stop action.
 - Difficulty reports use the backend mobility event endpoint and therefore require an active voluntary session and a selected campus map point. Reports are not shown as verified.
 - Local recent destinations and favourites are stored on the device.
@@ -98,7 +98,7 @@ The palette and spacing tokens are centralized in `src/state/preferences.tsx`. T
 
 ## Speech prototypes
 
-The screens depend on `SpeechToTextService` and `TextToSpeechService` interfaces in `src/services/speech/`. Current `StaticSpeechToText` and `StaticTextToSpeech` implementations simulate a delay and playback state only. Replace the implementations and inject the new provider at the service boundary when real APIs are selected; the screens should not need provider-specific logic.
+The screens depend on `SpeechToTextService` and `TextToSpeechService` interfaces in `src/services/speech/`. The current speech-to-text implementation streams a canned sample and does not use the microphone. Text-to-speech uses Expo's device speech engine locally. Replace the STT implementation at the service boundary if live transcription is added; the screens should not need provider-specific logic.
 
 ## Project structure
 

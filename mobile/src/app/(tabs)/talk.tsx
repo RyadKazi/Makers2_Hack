@@ -328,7 +328,7 @@ export default function TalkScreen() {
                   borderColor: isRecording ? '#FFA5A5' : palette.primary50,
                 },
               ]}>
-              <MaterialCommunityIcons name={isRecording ? 'stop' : 'microphone'} size={42} color={palette.onPrimary} />
+              <MaterialCommunityIcons name={isRecording ? 'stop' : 'play'} size={42} color={palette.onPrimary} />
             </Pressable>
 
             <AppText size={17} weight="bold">

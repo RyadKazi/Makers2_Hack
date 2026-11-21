@@ -31,7 +31,7 @@ export type RoomSummary = {
 };
 
 export type RoomDetail = RoomSummary & {
-  schedule: Array<{
+  schedule: {
     id: string;
     roomId: string;
     roomCode: string;
@@ -40,7 +40,7 @@ export type RoomDetail = RoomSummary & {
     organizer: string;
     startsAt: string;
     endsAt: string;
-  }>;
+  }[];
   accessibility: {
     stepFreeAccess: boolean;
     wheelchairAccessible: boolean;

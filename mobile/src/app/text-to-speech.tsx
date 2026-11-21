@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Pressable, TextInput, View } from 'react-native';
+import { Platform, Pressable, TextInput, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { AppScreen, AppText, Button, Card, Chip, InlineNotice, PageHeading } from '@/components/ui';
@@ -18,7 +18,6 @@ export default function TextToSpeechScreen() {
   const { t, palette, preferences, isRTL, setPreference } = usePreferences();
   const [text, setText] = useState('');
   const [speed, setSpeed] = useState(1);
-  const [voice, setVoice] = useState('Voice 1');
   const [playing, setPlaying] = useState(false);
   const [paused, setPaused] = useState(false);
   const handle = useRef<PreviewHandle | null>(null);
@@ -28,11 +27,11 @@ export default function TextToSpeechScreen() {
   const play = () => {
     if (!text.trim()) return;
     handle.current?.stop();
-    setPaused(false);
     setPlaying(true);
+    setPaused(false);
     handle.current = textToSpeechService.createPreview(
       text,
-      { locale: preferences.locale, speed, voice },
+      { locale: preferences.locale, speed },
       () => {
         setPlaying(false);
         setPaused(false);
@@ -41,6 +40,10 @@ export default function TextToSpeechScreen() {
   };
 
   const pause = () => {
+    if (Platform.OS === 'android') {
+      stop();
+      return;
+    }
     handle.current?.pause();
     setPaused(true);
   };
@@ -105,11 +108,8 @@ export default function TextToSpeechScreen() {
         </View>
       </View>
       <Card>
-        <AppText weight="semibold">{t('voice')}</AppText>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          <Chip label="Default Voice" selected={voice === 'Voice 1'} onPress={() => setVoice('Voice 1')} />
-          <Chip label="Alternate Voice" selected={voice === 'Voice 2'} onPress={() => setVoice('Voice 2')} />
-        </View>
+        <AppText weight="semibold">Device voice</AppText>
+        <AppText size={13} color={palette.muted}>The device selects the voice for the chosen language.</AppText>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 }}>
           <AppText weight="semibold">
             {t('speed')}: {speed.toFixed(1)}×
@@ -145,12 +145,12 @@ export default function TextToSpeechScreen() {
       </View>
       <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 8 }}>
         <Button
-          title={paused ? t('resume') : playing ? t('pause') : t('play')}
-          onPress={paused ? resume : playing ? pause : play}
+          title={paused ? t('resume') : playing ? (Platform.OS === 'android' ? t('stopDemo') : t('pause')) : t('play')}
+          onPress={paused ? resume : playing ? (Platform.OS === 'android' ? stop : pause) : play}
           disabled={!text.trim()}
           icon={
             <MaterialCommunityIcons
-              name={paused ? 'play' : 'volume-high'}
+              name={paused || !playing ? 'volume-high' : Platform.OS === 'android' ? 'stop' : 'pause'}
               size={18}
               color={palette.primaryText}
             />
@@ -160,9 +160,7 @@ export default function TextToSpeechScreen() {
         <Button title={t('stopDemo')} variant="outline" onPress={stop} disabled={!playing} />
       </View>
       {playing ? (
-        <InlineNotice tone="success">
-          {paused ? 'Audio paused' : 'Synthesizing and playing speech audio...'}
-        </InlineNotice>
+        <InlineNotice tone="success">{paused ? 'Speech paused.' : 'Playing speech with the device voice.'}</InlineNotice>
       ) : null}
       <Button
         title={t('clear')}
