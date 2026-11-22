@@ -4,12 +4,12 @@
   "private": true,
   "description": "CampusWay / accesU monorepo containing backend, mobile app, and ai-service",
   "scripts": {
-    "dev": "npm --prefix backend run dev",
-    "dev:backend": "npm --prefix backend run dev",
+    "dev": "python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 4000",
+    "dev:backend": "python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 4000",
     "dev:mobile": "npm --prefix mobile run dev",
     "start": "npm --prefix mobile start",
     "mobile": "npm --prefix mobile start",
-    "backend": "npm --prefix backend run dev",
+    "backend": "python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 4000",
     "test": "npm --prefix mobile test"
   }
 }
